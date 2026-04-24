@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<title>BALADA – Generátor cenoviek</title>
+<meta name="author" content="Ing. Richard Pouš">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #888;
+    font-family: Arial, Helvetica, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    gap: 16px;
+  }
+
+  /* ── PANEL ── */
+  .panel {
+    background: #f0f0f0;
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    width: 700px;
+    align-items: flex-end;
+  }
+  .panel h3 { width:100%; font-size:11pt; color:#333; border-bottom:1px solid #ccc; padding-bottom:4px; }
+
+  .fmt-row, .typ-row { display:flex; gap:8px; width:100%; }
+  .row-label { font-size:8pt; color:#555; font-weight:700; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; width:100%; }
+
+  .fmt-btn, .typ-btn {
+    background:#fff; border:2px solid #ccc; border-radius:6px;
+    padding:7px 20px; font-size:10pt; font-weight:700;
+    cursor:pointer; font-family:Arial; color:#555; transition:all .15s;
+  }
+  .fmt-btn.active, .typ-btn.active { border-color:#e3000b; color:#e3000b; background:#fff0f0; }
+  .fmt-btn:hover, .typ-btn:hover { border-color:#e3000b; }
+  .fmt-btn small { font-size:8pt; font-weight:400; }
+
+  .field { display:flex; flex-direction:column; gap:3px; flex: 1 1 120px; }
+  .field label { font-size:8pt; color:#555; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; }
+  .field input { border:1px solid #bbb; border-radius:4px; padding:5px 8px; font-size:10pt; font-family:Arial; background:#fff; }
+  .field input:focus { outline:none; border-color:#e3000b; }
+  .btn-print { background:#e3000b; color:#fff; border:none; border-radius:5px; padding:8px 20px; font-size:10pt; font-weight:700; cursor:pointer; }
+  .btn-print:hover { background:#b50009; }
+
+  /* ── KARTY — skryté/viditeľné ── */
+  .card { display: none; position: relative; overflow: hidden; background:#fff; border:1px solid #999; }
+  .card.active { display: block; }
+
+  /* A5 = 560×794px */
+  #card-a5 { width:560px; height:794px; }
+  /* A6 = 396×560px */
+  #card-a6 { width:396px; height:560px; }
+  /* A4 = 794×1123px */
+  #card-a4 { width:794px; height:1123px; }
+
+  /* ── AKCIA BAR ── */
+  .akcia-bar {
+    display:none; position:absolute; top:0; left:0; right:0;
+    background:#e3000b; color:#fff; font-weight:900;
+    text-align:center; text-transform:uppercase; letter-spacing:.35em; z-index:10;
+    font-family:Arial,sans-serif;
+  }
+  .typ-akcia .akcia-bar { display:block; }
+  #card-a5 .akcia-bar { font-size:20px; padding:18px 17px; }
+  #card-a6 .akcia-bar { font-size:14px; padding:14px 12px; }
+  #card-a4 .akcia-bar { font-size:30px; padding:22px 20px; }
+
+  /* ── NÁZOV BLOK ── */
+  .nazev-block {
+    position:absolute; display:flex; flex-direction:column;
+  }
+  #card-a5 .nazev-block { top:68px; left:76px; right:38px; }
+  #card-a6 .nazev-block { top:58px; left:64px; right:26px; }
+  #card-a4 .nazev-block { top:82px; left:94px; right:56px; }
+
+  .nazev-rohlik { font-weight:900; color:#e3000b; line-height:1.05; word-break:break-word; }
+  #card-a5 .nazev-rohlik { font-size:64px; }
+  #card-a6 .nazev-rohlik { font-size:45px; }
+  #card-a4 .nazev-rohlik { font-size:96px; }
+
+  .nazev-gram { font-weight:900; color:#e3000b; line-height:1.05; }
+  #card-a5 .nazev-gram { font-size:48px; }
+  #card-a6 .nazev-gram { font-size:34px; }
+  #card-a4 .nazev-gram { font-size:72px; }
+
+  /* ── INFO ── */
+  .info { position:absolute; color:#111; line-height:1.8; }
+  #card-a5 .info { bottom:200px; left:76px; font-size:12px; }
+  #card-a6 .info { bottom:142px; left:64px; font-size:9px; }
+  #card-a4 .info { bottom:296px; left:94px; font-size:16px; }
+
+  /* ── CENA ── */
+  .cena-block { position:absolute; }
+  #card-a5 .cena-block { bottom:30px; left:76px; }
+  #card-a6 .cena-block { bottom:20px; left:64px; }
+  #card-a4 .cena-block { bottom:44px; left:94px; }
+
+  .cena-hlavni { color:#e3000b; line-height:1; display:flex; flex-direction:row; align-items:flex-start; gap:0; }
+  .cena-int { font-weight:900; display:block; }
+  .cena-dec-wrap { display:flex; flex-direction:column; justify-content:flex-start; }
+  .cena-dec { font-weight:400; display:block; }
+  .cena-dec-pad { display:block; }
+  #card-a5 .cena-int { font-size:130px; }
+  #card-a5 .cena-dec { font-size:46px; }
+  #card-a5 .cena-dec-pad { height:31px; }
+  #card-a6 .cena-int { font-size:92px; }
+  #card-a6 .cena-dec { font-size:32px; }
+  #card-a6 .cena-dec-pad { height:22px; }
+  #card-a4 .cena-int { font-size:196px; }
+  #card-a4 .cena-dec { font-size:70px; }
+  #card-a4 .cena-dec-pad { height:47px; }
+
+  .cena-mena { font-weight:700; color:#e3000b; text-align:right; margin-top:-6px; }
+  #card-a5 .cena-mena { font-size:28px; }
+  #card-a6 .cena-mena { font-size:20px; }
+  #card-a4 .cena-mena { font-size:42px; }
+
+  .cena-ean { color:#111; margin-top:4px; line-height:1.5; }
+  #card-a5 .cena-ean { font-size:12px; }
+  #card-a6 .cena-ean { font-size:9px; }
+  #card-a4 .cena-ean { font-size:16px; }
+
+  /* ── PRINT ── */
+  @media print {
+    body { background:white; padding:0; gap:0; }
+    .panel { display:none; }
+    .card { display:none !important; border:none; }
+    .card.active { display:block !important; }
+
+    /* A5 */
+    #card-a5 { width:148mm; height:210mm; }
+    #card-a5 .nazev-block  { top:18mm; left:20mm; right:10mm; }
+    #card-a5 .nazev-rohlik { font-size:48pt; }
+    #card-a5 .nazev-gram   { font-size:36pt; }
+    #card-a5 .info         { bottom:52mm; left:20mm; font-size:9pt; }
+    #card-a5 .cena-hlavni  { display:flex; align-items:flex-start; }
+    #card-a5 .cena-int { font-size:96pt; }
+    #card-a5 .cena-dec { font-size:34pt; }
+    #card-a5 .cena-dec-pad { height:23pt; }
+    #card-a5 .cena-mena    { font-size:20pt; }
+    #card-a5 .cena-ean     { font-size:9pt; }
+    #card-a5 .cena-block   { bottom:8mm; left:20mm; }
+    #card-a5 .akcia-bar    { font-size:14pt; padding:6mm 7mm; letter-spacing:.35em; }
+
+    /* A6 */
+    #card-a6 { width:105mm; height:148mm; }
+    #card-a6 .nazev-block  { top:15mm; left:17mm; right:7mm; }
+    #card-a6 .nazev-rohlik { font-size:34pt; }
+    #card-a6 .nazev-gram   { font-size:25pt; }
+    #card-a6 .info         { bottom:37mm; left:17mm; font-size:7pt; }
+    #card-a6 .cena-hlavni  { display:flex; align-items:flex-start; }
+    #card-a6 .cena-int { font-size:68pt; }
+    #card-a6 .cena-dec { font-size:24pt; }
+    #card-a6 .cena-dec-pad { height:16pt; }
+    #card-a6 .cena-mena    { font-size:15pt; }
+    #card-a6 .cena-ean     { font-size:7pt; }
+    #card-a6 .cena-block   { bottom:6mm; left:17mm; }
+    #card-a6 .akcia-bar    { font-size:10pt; padding:5mm 6mm; letter-spacing:.35em; }
+
+    /* A4 */
+    #card-a4 { width:210mm; height:297mm; }
+    #card-a4 .nazev-block  { top:24mm; left:26mm; right:16mm; }
+    #card-a4 .nazev-rohlik { font-size:72pt; }
+    #card-a4 .nazev-gram   { font-size:54pt; }
+    #card-a4 .info         { bottom:74mm; left:26mm; font-size:13pt; }
+    #card-a4 .cena-hlavni  { display:flex; align-items:flex-start; }
+    #card-a4 .cena-int { font-size:144pt; }
+    #card-a4 .cena-dec { font-size:52pt; }
+    #card-a4 .cena-dec-pad { height:35pt; }
+    #card-a4 .cena-mena    { font-size:40pt; }
+    #card-a4 .cena-ean     { font-size:13pt; }
+    #card-a4 .cena-block   { bottom:14mm; left:26mm; }
+    #card-a4 .akcia-bar    { font-size:22pt; padding:8mm 10mm; letter-spacing:.35em; }
+
+    @page { margin:0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- PANEL -->
+<div class="panel">
+  <h3>✏️ Editácia cenovky BALADA</h3>
+
+  <div style="width:100%">
+    <div class="row-label">Formát papiera</div>
+    <div class="fmt-row">
+      <button class="fmt-btn" onclick="setFmt('a6',this)">A6 <small>105×148mm</small></button>
+      <button class="fmt-btn active" onclick="setFmt('a5',this)">A5 <small>148×210mm</small></button>
+      <button class="fmt-btn" onclick="setFmt('a4',this)">A4 <small>210×297mm</small></button>
+    </div>
+  </div>
+
+  <div style="width:100%">
+    <div class="row-label">Typ cenovky</div>
+    <div class="typ-row">
+      <button class="typ-btn active" onclick="setTyp('standard',this)">Štandardná</button>
+      <button class="typ-btn" onclick="setTyp('akcia',this)">⚡ AKCIA</button>
+    </div>
+  </div>
+
+  <div class="field" style="flex:2 1 180px">
+    <label>Názov</label>
+    <input id="inp-nazev" type="text" value="Rohlík" oninput="syncAll()">
+  </div>
+  <div class="field">
+    <label>Gramáž</label>
+    <input id="inp-gram" type="text" value="43g" oninput="syncAll()">
+  </div>
+  <div class="field">
+    <label>Cena</label>
+    <input id="inp-cena" type="text" value="2,50" oninput="syncAll()">
+  </div>
+  <div class="field">
+    <label>Mena</label>
+    <input id="inp-mena" type="text" value="Kč" oninput="syncAll()">
+  </div>
+  <div class="field">
+    <label>Alergény</label>
+    <input id="inp-alergeny" type="text" value="1" oninput="syncAll()">
+  </div>
+  <div class="field" style="flex:3 1 280px">
+    <label>Výrobca</label>
+    <input id="inp-vyrobce" type="text" value="ADW FOOD s.r.o., Brněnská 158, Židlochovice" oninput="syncAll()">
+  </div>
+  <div class="field">
+    <label>Kategória</label>
+    <input id="inp-kategorie" type="text" value="Bežné pečivo" oninput="syncAll()">
+  </div>
+  <div class="field">
+    <label>Krajina pôvodu</label>
+    <input id="inp-zeme" type="text" value="ČR" oninput="syncAll()">
+  </div>
+  <div class="field">
+    <label>EAN kód</label>
+    <input id="inp-ean" type="text" value="8594015842011" oninput="syncAll()">
+  </div>
+
+  <button class="btn-print" onclick="window.print()">🖨️ Tlač</button>
+  <div style="width:100%;font-size:8pt;color:#aaa;text-align:right;padding-top:4px">© 2026 Ing. Richard Pouš</div>
+</div>
+
+<!-- KARTA A5 -->
+<div class="card active" id="card-a5">
+  <div class="akcia-bar">NOVÁ CENA</div>
+  <div class="nazev-block">
+    <div class="nazev-rohlik" data-f="nazev">Rohlík</div>
+    <div class="nazev-gram"   data-f="gram">43g</div>
+  </div>
+  <div class="info">
+    <div>alergény:&nbsp;&nbsp;<span data-f="alergeny">1</span></div>
+    <div data-f="vyrobce">ADW FOOD s.r.o., Brněnská 158, Židlochovice</div>
+    <div data-f="kategorie">Bežné pečivo</div>
+    <div>krajina pôvodu:&nbsp;&nbsp;<span data-f="zeme">ČR</span></div>
+  </div>
+  <div class="cena-block">
+    <div class="cena-hlavni" id="out-cena-a5"><span class="cena-int">2,</span><span class="cena-dec-wrap"><span class="cena-dec-pad"></span><span class="cena-dec">50</span></span></div>
+    <div class="cena-mena"   data-f="mena">Kč</div>
+    <div class="cena-ean"    data-f="ean">8594015842011</div>
+  </div>
+</div>
+
+<!-- KARTA A6 -->
+<div class="card" id="card-a6">
+  <div class="akcia-bar">NOVÁ CENA</div>
+  <div class="nazev-block">
+    <div class="nazev-rohlik" data-f="nazev">Rohlík</div>
+    <div class="nazev-gram"   data-f="gram">43g</div>
+  </div>
+  <div class="info">
+    <div>alergény:&nbsp;&nbsp;<span data-f="alergeny">1</span></div>
+    <div data-f="vyrobce">ADW FOOD s.r.o., Brněnská 158, Židlochovice</div>
+    <div data-f="kategorie">Bežné pečivo</div>
+    <div>krajina pôvodu:&nbsp;&nbsp;<span data-f="zeme">ČR</span></div>
+  </div>
+  <div class="cena-block">
+    <div class="cena-hlavni" id="out-cena-a6"><span class="cena-int">2,</span><span class="cena-dec-wrap"><span class="cena-dec-pad"></span><span class="cena-dec">50</span></span></div>
+    <div class="cena-mena"   data-f="mena">Kč</div>
+    <div class="cena-ean"    data-f="ean">8594015842011</div>
+  </div>
+</div>
+
+<!-- KARTA A4 -->
+<div class="card" id="card-a4">
+  <div class="akcia-bar">NOVÁ CENA</div>
+  <div class="nazev-block">
+    <div class="nazev-rohlik" data-f="nazev">Rohlík</div>
+    <div class="nazev-gram"   data-f="gram">43g</div>
+  </div>
+  <div class="info">
+    <div>alergény:&nbsp;&nbsp;<span data-f="alergeny">1</span></div>
+    <div data-f="vyrobce">ADW FOOD s.r.o., Brněnská 158, Židlochovice</div>
+    <div data-f="kategorie">Bežné pečivo</div>
+    <div>krajina pôvodu:&nbsp;&nbsp;<span data-f="zeme">ČR</span></div>
+  </div>
+  <div class="cena-block">
+    <div class="cena-hlavni" id="out-cena-a4"><span class="cena-int">2,</span><span class="cena-dec-wrap"><span class="cena-dec-pad"></span><span class="cena-dec">50</span></span></div>
+    <div class="cena-mena"   data-f="mena">Kč</div>
+    <div class="cena-ean"    data-f="ean">8594015842011</div>
+  </div>
+</div>
+
+<script>
+  function syncAll() {
+    var vals = {
+      nazev:     document.getElementById('inp-nazev').value,
+      gram:      document.getElementById('inp-gram').value,
+      mena:      document.getElementById('inp-mena').value,
+      alergeny:  document.getElementById('inp-alergeny').value,
+      vyrobce:   document.getElementById('inp-vyrobce').value,
+      kategorie: document.getElementById('inp-kategorie').value,
+      zeme:      document.getElementById('inp-zeme').value,
+      ean:       document.getElementById('inp-ean').value,
+    };
+    document.querySelectorAll('[data-f]').forEach(function(el) {
+      el.textContent = vals[el.getAttribute('data-f')] || '';
+    });
+    // Cena — rozdeliť na celú a desatinnú časť
+    var cena = document.getElementById('inp-cena').value;
+    var sep = cena.indexOf(',') !== -1 ? ',' : (cena.indexOf('.') !== -1 ? '.' : null);
+    ['a5','a6','a4'].forEach(function(fmt) {
+      var el = document.getElementById('out-cena-' + fmt);
+      if (!el) return;
+      if (sep) {
+        var parts = cena.split(sep);
+        el.innerHTML = '<span class="cena-int">' + parts[0] + sep + '</span><span class="cena-dec-wrap"><span class="cena-dec-pad"></span><span class="cena-dec">' + (parts[1]||'') + '</span></span>';
+      } else {
+        el.innerHTML = '<span class="cena-int">' + cena + '</span>';
+      }
+    });
+  }
+
+  function setFmt(fmt, btn) {
+    document.querySelectorAll('.fmt-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    document.querySelectorAll('.card').forEach(function(c){c.classList.remove('active');});
+    document.getElementById('card-' + fmt).classList.add('active');
+    var sizes = {a4:'A4', a5:'A5', a6:'A6'};
+    var el = document.getElementById('dyn-page');
+    if (el) el.remove();
+    var s = document.createElement('style');
+    s.id = 'dyn-page';
+    s.textContent = '@media print{@page{size:' + sizes[fmt] + ' portrait;margin:0}}';
+    document.head.appendChild(s);
+  }
+
+  function setTyp(typ, btn) {
+    document.querySelectorAll('.typ-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    document.querySelectorAll('.card').forEach(function(c){
+      typ === 'akcia' ? c.classList.add('typ-akcia') : c.classList.remove('typ-akcia');
+    });
+  }
+</script>
+</body>
+</html>

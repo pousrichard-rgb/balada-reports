@@ -41,6 +41,34 @@ html,body{height:100%;font-family:Arial,sans-serif;font-size:14px}
 .status.err{color:#D85A30}
 .left-footer{padding:12px 16px;border-top:0.5px solid #252523;font-size:10px;color:#2e2e2c;text-align:center;flex-shrink:0}
 
+/* ── HISTÓRIA ── */
+.hist-list{display:flex;flex-direction:column;gap:4px;margin-bottom:4px}
+.hist-item{display:flex;align-items:center;justify-content:space-between;padding:5px 8px;border-radius:5px;background:#1e1e1c;border:0.5px solid #2a2a28;font-size:10px;cursor:pointer;transition:border-color .15s}
+.hist-item:hover{border-color:#378ADD}
+.hist-item.today{border-color:#5DCAA5;background:#0A1F14}
+.hist-date{color:#ccc;font-weight:500}
+.hist-date.today-lbl{color:#5DCAA5}
+.hist-trzba{color:#6b6b65;font-size:9px}
+.hist-del{background:none;border:none;color:#3a3a38;cursor:pointer;font-size:11px;padding:0 2px;line-height:1;flex-shrink:0}
+.hist-del:hover{color:#D85A30}
+.hist-empty{font-size:10px;color:#3a3a38;padding:6px 0;font-style:italic}
+.hist-count{font-size:9px;color:#3a3a38;margin-top:4px}
+
+/* ── DUPLIKÁT DIALOG ── */
+.dup-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;align-items:center;justify-content:center}
+.dup-overlay.show{display:flex}
+.dup-box{background:#222220;border:0.5px solid #333;border-radius:12px;padding:24px;width:320px;max-width:90vw}
+.dup-icon{font-size:28px;margin-bottom:12px}
+.dup-title{font-size:14px;font-weight:700;color:#fff;margin-bottom:6px}
+.dup-desc{font-size:11px;color:#888;line-height:1.6;margin-bottom:18px}
+.dup-date{color:#5DCAA5;font-weight:600}
+.dup-btns{display:flex;gap:8px}
+.dup-btn{flex:1;padding:9px;border-radius:7px;border:none;font-size:11px;font-weight:600;cursor:pointer;font-family:Arial}
+.dup-btn.cancel{background:#2a2a28;color:#aaa}
+.dup-btn.cancel:hover{background:#333}
+.dup-btn.overwrite{background:#e3000b;color:#fff}
+.dup-btn.overwrite:hover{background:#b50009}
+
 /* ===== PRAVÝ PANEL ===== */
 .right{background:#f5f5f2;overflow-y:auto;position:relative}
 .empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#aaa;text-align:center;padding:40px}
@@ -251,6 +279,10 @@ table.r-styled td:last-child{text-align:right;font-weight:500}
       <div class="fm" id="marzaFileMeta"></div>
       <div style="margin-top:5px"><button onclick="clearMarzaMap()" style="background:none;border:none;font-size:10px;color:#444;cursor:pointer;padding:0;font-family:inherit">✕ Vymazať z pamäte</button></div>
     </div>
+
+    <div class="sb-section">História reportov</div>
+    <div class="hist-list" id="histList"></div>
+    <div class="hist-count" id="histCount"></div>
 
     <div class="sb-section">Nastavenia</div>
     <div class="field"><label>Pobočka</label><input type="text" id="s-pobocka" value="BALADA – Březinky, Jihlava"></div>
@@ -561,6 +593,8 @@ document.addEventListener('DOMContentLoaded',function(){
       if(keyStatus){keyStatus.textContent='✓ Kľúč načítaný z pamäte';keyStatus.style.color='#5DCAA5';}
     }
   }catch(e){}
+  // Zobraziť históriu
+  renderHistList();
 });
 
 function handleKatFile(f){
@@ -1100,6 +1134,8 @@ function renderReport(D){
   document.getElementById('reportWrap').classList.add('show');
   // Maržová sekcia
   renderMarzaSection(D);
+  // Uložiť snapshot do histórie
+  trySaveSnapshot(D);
   // Spustiť AI analýzu
   runAiAnalysis();
   // Grafy — počkaj kým sú canvasy viditeľné (GitHub Pages potrebuje dlhší timeout)
@@ -1820,6 +1856,107 @@ FORMÁT: Čisté HTML. <h4> pre nadpisy, <p> pre text, <ul><li> pre zoznamy, <st
 }
 
 
+// ===== HISTÓRIA REPORTOV =====
+var HIST_KEY='balada_daily_history';
+var _pendingSnapshot=null;
+
+function histLoad(){
+  try{var h=localStorage.getItem(HIST_KEY);return h?JSON.parse(h):[];}catch(e){return [];}
+}
+
+function histSave(arr){
+  try{localStorage.setItem(HIST_KEY,JSON.stringify(arr));}catch(e){}
+}
+
+function dateStrFromD(D){
+  if(!D||!D.datum)return null;
+  var p=D.datum.replace(/\s/g,'').split('.');
+  if(p.length<3)return null;
+  return p[2]+'-'+(p[1].padStart(2,'0'))+'-'+(p[0].padStart(2,'0'));
+}
+
+function buildSnapshot(D){
+  return{
+    datum:D.datum,den:D.den,dateKey:dateStrFromD(D),
+    trzba:Math.round(D.trzba),tx_count:D.tx_count,avg_tx:Math.round(D.avg_tx),
+    trzba_akcie:Math.round(D.trzba_akcie),
+    promoRatio:D.trzba>0?Math.round(D.trzba_akcie/D.trzba*100):0,
+    j1pct:D.j1pct,j5pct:D.j5pct,avg_kosik:D.avg_kosik,
+    karta:Math.round(D.karta),cash:Math.round(D.cash),strav:Math.round(D.strav),
+    abc_a_pct:D.abc?Math.round(D.abc.dayA/D.trzba*100):null,
+    abc_a_count:D.abc?D.abc.a.count:null,
+    top_kat:D.kategorie&&D.kategorie.length>0?D.kategorie[0].n:null,
+    marza_pct:D.marza?parseFloat(D.marza.pct.toFixed(1)):null,
+    marza_kc:D.marza?D.marza.totalKc:null,
+    savedAt:new Date().toISOString()
+  };
+}
+
+function trySaveSnapshot(D){
+  var snap=buildSnapshot(D);
+  if(!snap.dateKey)return;
+  var hist=histLoad();
+  var existing=hist.findIndex(function(h){return h.dateKey===snap.dateKey;});
+  if(existing>=0){
+    _pendingSnapshot={snap:snap,hist:hist,idx:existing};
+    document.getElementById('dupDate').textContent=D.datum+(D.den?' ('+D.den+')':'');
+    document.getElementById('dupOverlay').classList.add('show');
+  }else{
+    hist.unshift(snap);
+    if(hist.length>120)hist=hist.slice(0,120);
+    histSave(hist);
+    renderHistList();
+  }
+}
+
+function dupCancel(){
+  document.getElementById('dupOverlay').classList.remove('show');
+  _pendingSnapshot=null;
+}
+
+function dupOverwrite(){
+  document.getElementById('dupOverlay').classList.remove('show');
+  if(!_pendingSnapshot)return;
+  var h=_pendingSnapshot.hist;
+  h.splice(_pendingSnapshot.idx,1);
+  h.unshift(_pendingSnapshot.snap);
+  histSave(h);
+  renderHistList();
+  _pendingSnapshot=null;
+}
+
+function histDelete(dateKey,e){
+  e.stopPropagation();
+  if(!confirm('Odstrániť report '+dateKey+'?'))return;
+  var hist=histLoad();
+  hist=hist.filter(function(h){return h.dateKey!==dateKey;});
+  histSave(hist);
+  renderHistList();
+}
+
+function renderHistList(){
+  var hist=histLoad();
+  var el=document.getElementById('histList');
+  var cnt=document.getElementById('histCount');
+  if(!el)return;
+  if(hist.length===0){
+    el.innerHTML='<div class="hist-empty">Žiadne uložené reporty</div>';
+    if(cnt)cnt.textContent='';
+    return;
+  }
+  var todayKey=new Date().toISOString().slice(0,10);
+  el.innerHTML=hist.slice(0,14).map(function(h){
+    var isToday=h.dateKey===todayKey;
+    var denSkr=h.den?h.den.substring(0,2):'';
+    return '<div class="hist-item'+(isToday?' today':'')+'" title="'+h.datum+' · '+h.tx_count+' tx · '+h.avg_tx+' Kč/tx">'
+      +'<span class="hist-date'+(isToday?' today-lbl':'')+'">'+denSkr+' '+h.datum+'</span>'
+      +'<span class="hist-trzba">'+Math.round(h.trzba/1000)+'k Kč</span>'
+      +'<button class="hist-del" onclick="histDelete(\''+h.dateKey+'\',event)" title="Odstrániť">×</button>'
+    +'</div>';
+  }).join('');
+  if(cnt)cnt.textContent=hist.length+' uložených'+(hist.length>14?' · zobraziť len posledných 14':'');
+}
+
 function downloadHTML(){
   var s='<!DOCTYPE html>\n'+document.documentElement.outerHTML;
   var b=new Blob([s],{type:'text/html;charset=utf-8'});
@@ -1838,5 +1975,18 @@ function exportPDF(){
 }
 
 </script>
+
+<!-- DUPLIKÁT DIALOG -->
+<div class="dup-overlay" id="dupOverlay">
+  <div class="dup-box">
+    <div class="dup-icon">⚠️</div>
+    <div class="dup-title">Report už existuje</div>
+    <div class="dup-desc">Report pre deň <span class="dup-date" id="dupDate">—</span> je už uložený v histórii.<br>Chcete ho prepísať novými dátami?</div>
+    <div class="dup-btns">
+      <button class="dup-btn cancel" onclick="dupCancel()">Zrušiť</button>
+      <button class="dup-btn overwrite" onclick="dupOverwrite()">Prepísať</button>
+    </div>
+  </div>
+</div>
 
 </body></html>
