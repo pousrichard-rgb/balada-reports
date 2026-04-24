@@ -947,7 +947,7 @@ function toggleKat(id){
 }
 
 // ===== RENDER =====
-function renderReport(D){
+function renderReport(D, skipSave){
   var fromHist=!!D.fromHistory;
   var pobocka=document.getElementById('s-pobocka').value;
   var dic=document.getElementById('s-dic').value;
@@ -1142,8 +1142,8 @@ function renderReport(D){
   document.getElementById('reportWrap').classList.add('show');
   // Maržová sekcia
   renderMarzaSection(D);
-  // Uložiť snapshot do histórie
-  trySaveSnapshot(D);
+  // Uložiť snapshot do histórie (len pri reálnom generovaní, nie z histórie)
+  if(!skipSave) trySaveSnapshot(D);
   // Spustiť AI analýzu
   runAiAnalysis();
   // Grafy — počkaj kým sú canvasy viditeľné (GitHub Pages potrebuje dlhší timeout)
@@ -1982,9 +1982,12 @@ function loadFromHistory(dateKey){
   document.getElementById('loadingState').classList.add('show');
 
   setTimeout(function(){
-    renderReport(fakeD);
+    renderReport(fakeD, true); // true = skipSave
+    // Odstráň staré bannery
+    document.querySelectorAll('.hist-banner').forEach(function(b){b.remove();});
     // Žltý banner
     var banner=document.createElement('div');
+    banner.className='hist-banner';
     banner.style.cssText='background:#FDF3DC;border:0.5px solid #C8860A;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7A4F00;display:flex;align-items:center;gap:8px';
     banner.innerHTML='<span style="font-size:16px">📅</span><span>Snapshot z <strong>'+snap.datum+' ('+snap.den+')</strong>. Grafy a detail produktov nie sú dostupné bez pôvodného XLSX.</span>';
     var rw=document.getElementById('reportWrap');
