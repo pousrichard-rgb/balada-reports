@@ -242,7 +242,11 @@ table.r-styled td:last-child{text-align:right;font-weight:500}
   </div>
   <div class="left-body">
 
-    <div class="sb-section" style="margin-top:0;border-top:none">Nahrať export z pokladne</div>
+    <div class="sb-section" style="margin-top:0;border-top:none">História reportov</div>
+    <div class="hist-list" id="histList"></div>
+    <div class="hist-count" id="histCount"></div>
+
+    <div class="sb-section">Nahrať export z pokladne</div>
     <div class="upload-zone" id="uploadZone" ondragover="ev.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="ev.preventDefault();this.classList.remove('drag');handleFile(ev.dataTransfer.files[0])">
       <input type="file" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
       <div class="upload-icon">📂</div>
@@ -280,10 +284,6 @@ table.r-styled td:last-child{text-align:right;font-weight:500}
       <div class="fm" id="marzaFileMeta"></div>
       <div style="margin-top:5px"><button onclick="clearMarzaMap()" style="background:none;border:none;font-size:10px;color:#444;cursor:pointer;padding:0;font-family:inherit">✕ Vymazať z pamäte</button></div>
     </div>
-
-    <div class="sb-section">História reportov</div>
-    <div class="hist-list" id="histList"></div>
-    <div class="hist-count" id="histCount"></div>
 
     <div class="sb-section">Nastavenia</div>
     <div class="field"><label>Pobočka</label><input type="text" id="s-pobocka" value="BALADA – Březinky, Jihlava"></div>
@@ -948,13 +948,14 @@ function toggleKat(id){
 
 // ===== RENDER =====
 function renderReport(D){
+  var fromHist=!!D.fromHistory;
   var pobocka=document.getElementById('s-pobocka').value;
   var dic=document.getElementById('s-dic').value;
   var idprov=document.getElementById('s-idprov').value;
   document.getElementById('r-pobocka').textContent=pobocka;
   document.getElementById('r-subtitle').textContent='Management report · RAPO BRNO, s.r.o. · DIČ '+dic+' · ID provozovny '+idprov+' · '+D.datum+' · '+D.den;
   document.getElementById('toolbarMeta').textContent='BALADA Daily Report · '+D.datum;
-  document.getElementById('r-footer').textContent='Vygenerované z dát pokladničného systému · '+pobocka+' · '+D.datum;
+  document.getElementById('r-footer').textContent='Vygenerované z dát pokladničného systému · '+pobocka+' · '+D.datum+(fromHist?' [snapshot]':'');
   // KPI
   document.getElementById('r-trzba').textContent=fmt(D.trzba)+' Kč';
   document.getElementById('r-tx').textContent=fmt(D.tx_count);
@@ -977,27 +978,29 @@ function renderReport(D){
   document.getElementById('b-d12').style.width=(D.d12z/maxD*100)+'%';
   document.getElementById('b-d21').style.width=(D.d21z/maxD*100)+'%';
   document.getElementById('b-d0').style.width=(D.d0z/maxD*100)+'%';
-  document.getElementById('v-d12').textContent=fmt(D.d12z)+' Kč';
-  document.getElementById('v-d21').textContent=fmt(D.d21z)+' Kč';
-  document.getElementById('v-d0').textContent=fmt(D.d0z)+' Kč';
-  document.getElementById('r-dphc').textContent=fmt(D.dphcel)+' Kč';
+  document.getElementById('v-d12').textContent=fmt(D.d12z||0)+' Kč';
+  document.getElementById('v-d21').textContent=fmt(D.d21z||0)+' Kč';
+  document.getElementById('v-d0').textContent=fmt(D.d0z||0)+' Kč';
+  document.getElementById('r-dphc').textContent=fmt(D.dphcel||0)+' Kč';
   // Ďalšie
-  document.getElementById('r-vrat').textContent=fmtDec(D.vrat,2)+' Kč';
-  document.getElementById('r-zrus').textContent=D.zrus_count+' ks';
-  document.getElementById('r-zlavy').textContent=fmtDec(D.slevy,2)+' Kč';
-  document.getElementById('r-zaokr').textContent=fmtDec(D.zaokr,2)+' Kč';
+  document.getElementById('r-vrat').textContent=fmtDec(D.vrat||0,2)+' Kč';
+  document.getElementById('r-zrus').textContent=(D.zrus_count||0)+' ks';
+  document.getElementById('r-zlavy').textContent=fmtDec(D.slevy||0,2)+' Kč';
+  document.getElementById('r-zaokr').textContent=fmtDec(D.zaokr||0,2)+' Kč';
   // Akcie
   var bezak=D.trzba-D.trzba_akcie;
   document.getElementById('r-ak').textContent=fmt(D.trzba_akcie)+' Kč';
   document.getElementById('r-bezak').textContent=fmt(bezak)+' Kč';
   document.getElementById('r-akpct').textContent=D.trzba>0?(D.trzba_akcie/D.trzba*100).toFixed(1)+' % z celku':'—';
   document.getElementById('r-bezakpct').textContent=D.trzba>0?(bezak/D.trzba*100).toFixed(1)+' % z celku':'—';
-  document.getElementById('r-prog').textContent=D.program;
-  document.getElementById('r-akcienote').textContent='Program '+D.program+' – líder akcií: '+(D.top_akcie.length>0?D.top_akcie[0].n:'—')+'.';
+  document.getElementById('r-prog').textContent=D.program||'—';
+  document.getElementById('r-akcienote').textContent=fromHist?'Detail akcií nedostupný — zobrazený snapshot.'
+    :('Program '+(D.program||'')+(D.top_akcie&&D.top_akcie.length>0?' – líder akcií: '+D.top_akcie[0].n:'')+'.');
   // Top akcie
   var taEl=document.getElementById('r-topakcie');
   taEl.innerHTML='<p class="r-ctitle">Top akciové produkty (tržba)</p>';
-  var maxTA=D.top_akcie.length>0?D.top_akcie[0].v:1;
+  if(fromHist){taEl.innerHTML+='<p style="font-size:11px;color:#aaa;padding:8px 0">Dostupné len pri nahratí pôvodného XLSX.</p>';}
+  var maxTA=D.top_akcie&&D.top_akcie.length>0?D.top_akcie[0].v:1;
   D.top_akcie.forEach(function(t){
     taEl.innerHTML+='<div class="r-bar-row-full"><div class="r-brf-label">'+(t.cislo?'<span style="font-size:10px;color:#aaa;margin-right:4px">'+escHtml(t.cislo)+'</span>':'')+escHtml(t.n)+'</div>'
       +'<div class="r-brf-bar"><div class="r-bar-track"><div class="r-bar-fill" style="width:'+(t.v/maxTA*100).toFixed(1)+'%;background:#378ADD"></div></div>'
@@ -1935,6 +1938,58 @@ function histDelete(dateKey,e){
   renderHistList();
 }
 
+function loadFromHistory(dateKey){
+  var hist=histLoad();
+  var snap=hist.find(function(h){return h.dateKey===dateKey;});
+  if(!snap)return;
+  if(!currentData){
+    // Žiadne XLSX — zostavíme minimálny D zo snapshotu a renderujeme
+    alert('Pre zobrazenie detailu z histórie najprv nahrajte ľubovoľnú dennú Sestavu XLSX. Snapshot sa potom zobrazí automaticky.');
+    return;
+  }
+  // Prepíšeme currentData hodnotami zo snapshotu a vyrenderujeme
+  var D=currentData;
+  // Preload hodnôt zo snapshotu do reportu — len metriky ktoré máme
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('reportWrap').classList.remove('show');
+  document.getElementById('reportToolbar').style.display='none';
+  document.getElementById('loadingState').classList.add('show');
+
+  // Zostavíme D zo snapshotu pre zobrazenie
+  var fakeD={
+    datum:snap.datum, den:snap.den,
+    trzba:snap.trzba, tx_count:snap.tx_count, avg_tx:snap.avg_tx,
+    pol_count:0, max_tx:0, pol_akcie:0, akciapct:0,
+    trzba_akcie:snap.trzba_akcie||0,
+    karta:snap.karta||0, cash:snap.cash||0, strav:snap.strav||0,
+    j1:0, j1pct:snap.j1pct||0, j5:0, j5pct:snap.j5pct||0,
+    avg_kosik:snap.avg_kosik||0,
+    hodiny_labels:[], hodiny_trzba:[], hodiny_tx:[],
+    ticket:[0,0,0,0,0,0,0],
+    kombos:[], top10:[], top10ks:[], top10dok:[],
+    kategorie:snap.top_kat?[{n:snap.top_kat,v:snap.trzba}]:[],
+    abc:snap.abc_a_count?{
+      total:snap.abc_a_count,totalTrzba:snap.trzba,
+      a:{count:snap.abc_a_count,trzba:snap.trzba*(snap.abc_a_pct/100),pct:snap.abc_a_pct||0},
+      b:{count:0,trzba:0,pct:0},c:{count:0,trzba:0,pct:0},
+      topA:[],topB:[],topC:[],all:[],pareto:[],
+      dayA:snap.trzba*(snap.abc_a_pct/100)||0,dayB:0,dayC:0
+    }:null,
+    marza:snap.marza_pct?{pct:snap.marza_pct,totalKc:snap.marza_kc||0,negCount:0,pokrytie:0}:null,
+    vatData:{}, fromHistory:true
+  };
+  // Upozornenie že ide o snapshot
+  setTimeout(function(){
+    renderReport(fakeD);
+    // Zobraz banner
+    var banner=document.createElement('div');
+    banner.style.cssText='background:#FDF3DC;border:0.5px solid #C8860A;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7A4F00;display:flex;align-items:center;gap:8px';
+    banner.innerHTML='<span style="font-size:16px">📅</span><span>Zobrazený je uložený <strong>snapshot</strong> z '+snap.datum+' ('+snap.den+'). Niektoré sekcie sú nedostupné bez pôvodného XLSX súboru.</span>';
+    var rw=document.getElementById('reportWrap');
+    if(rw&&rw.firstChild)rw.insertBefore(banner,rw.firstChild);
+  },300);
+}
+
 function renderHistList(){
   var hist=histLoad();
   var el=document.getElementById('histList');
@@ -1949,13 +2004,13 @@ function renderHistList(){
   el.innerHTML=hist.slice(0,14).map(function(h){
     var isToday=h.dateKey===todayKey;
     var denSkr=h.den?h.den.substring(0,2):'';
-    return '<div class="hist-item'+(isToday?' today':'')+'" title="'+h.datum+' · '+h.tx_count+' tx · '+h.avg_tx+' Kč/tx">'
+    return '<div class="hist-item'+(isToday?' today':'')+'" onclick="loadFromHistory(\''+h.dateKey+'\')" title="Klikni pre zobrazenie · '+h.datum+' · '+h.tx_count+' tx · '+h.avg_tx+' Kč/tx">'
       +'<span class="hist-date'+(isToday?' today-lbl':'')+'">'+denSkr+' '+h.datum+'</span>'
       +'<span class="hist-trzba">'+Math.round(h.trzba/1000)+'k Kč</span>'
       +'<button class="hist-del" onclick="histDelete(\''+h.dateKey+'\',event)" title="Odstrániť">×</button>'
     +'</div>';
   }).join('');
-  if(cnt)cnt.textContent=hist.length+' uložených'+(hist.length>14?' · zobraziť len posledných 14':'');
+  if(cnt)cnt.textContent=hist.length+' uložených'+(hist.length>14?' · len posledných 14':'');
 }
 
 function downloadHTML(){
