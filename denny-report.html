@@ -923,6 +923,10 @@ function parseXLSX(buf){
   currentData=D;
   document.getElementById('status').textContent='✓ Sparsované ('+D.tx_count+' transakcií)';
   document.getElementById('status').className='status ok';
+  // Reset — odstráň prípadný history banner a obnov tlačidlo
+  document.querySelectorAll('.hist-banner').forEach(function(b){b.remove();});
+  var btn=document.getElementById('btnGen');
+  if(btn){btn.textContent='⚡ Generovať Daily Report';btn.style.background='';btn.disabled=false;}
   // Spustiť AI analýzu automaticky po načítaní súboru
   setTimeout(function(){if(currentData)runAiAnalysis();},500);
 }
@@ -930,6 +934,7 @@ function parseXLSX(buf){
 // ===== GENERATE =====
 function generateReport(){
   if(!currentData){document.getElementById('status').textContent='Najprv nahrajte súbor';document.getElementById('status').className='status err';return;}
+  if(currentData.fromHistory){document.getElementById('status').textContent='Nahrajte novú Sestavu XLSX pre generovanie';document.getElementById('status').className='status err';return;}
   document.getElementById('emptyState').style.display='none';
   document.getElementById('reportWrap').classList.remove('show');
   document.getElementById('reportToolbar').style.display='none';
@@ -1975,6 +1980,14 @@ function loadFromHistory(dateKey){
 
   // Nastav currentData pre prípad ďalšieho použitia
   currentData=fakeD;
+
+  // Uprav tlačidlo Generovať — je v history móde
+  var btn=document.getElementById('btnGen');
+  if(btn){
+    btn.textContent='📅 Zobrazený snapshot — nahraj XLSX pre nový report';
+    btn.style.background='#6b6b65';
+    btn.disabled=false;
+  }
 
   document.getElementById('emptyState').style.display='none';
   document.getElementById('reportWrap').classList.remove('show');
