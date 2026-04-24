@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Ing. Richard Pouš">
+<title>BALADA · Interný portál</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:#1a1a18}
+
+/* ── HEADER ── */
+.header{
+  background:#1a1a18;
+  padding:0 40px;
+  display:flex;align-items:center;justify-content:space-between;
+  height:64px;
+  border-bottom:3px solid #e3000b;
+  position:sticky;top:0;z-index:100;
+}
+.header-logo{display:flex;align-items:baseline;gap:12px}
+.logo-main{font-size:24px;font-weight:900;color:#fff;letter-spacing:.02em}
+.logo-main span{color:#e3000b}
+.logo-sep{width:1px;height:18px;background:#333}
+.logo-sub{font-size:11px;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.header-meta{font-size:10px;color:#444;text-align:right;line-height:1.6}
+.header-meta strong{color:#777}
+
+/* ── HERO ── */
+.hero{
+  background:#1a1a18;
+  padding:48px 40px 40px;
+  border-bottom:0.5px solid #252523;
+}
+.hero-inner{max-width:960px;margin:0 auto}
+.hero-title{font-size:32px;font-weight:300;color:#fff;line-height:1.2;margin-bottom:8px}
+.hero-title strong{font-weight:900;color:#e3000b}
+.hero-sub{font-size:13px;color:#555;line-height:1.7;max-width:520px}
+.hero-badges{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+.badge{background:#222;border:0.5px solid #333;border-radius:4px;padding:3px 10px;font-size:10px;color:#666;letter-spacing:.06em;text-transform:uppercase}
+.badge.red{border-color:#5a0005;color:#e3000b;background:#1a0002}
+
+/* ── MAIN ── */
+.main{max-width:960px;margin:0 auto;padding:40px 40px 60px}
+
+/* ── SEKCIE ── */
+.section-title{
+  font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.12em;color:#aaa;margin-bottom:16px;
+  padding-bottom:8px;border-bottom:0.5px solid #e0e0da;
+}
+
+/* ── KARTY ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:40px}
+
+.card{
+  background:#fff;
+  border:0.5px solid rgba(0,0,0,0.1);
+  border-radius:12px;
+  padding:24px;
+  text-decoration:none;
+  color:inherit;
+  display:flex;flex-direction:column;
+  transition:box-shadow .15s,transform .15s;
+  position:relative;
+  overflow:hidden;
+}
+.card:hover{box-shadow:0 8px 32px rgba(0,0,0,0.12);transform:translateY(-2px)}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:#e0e0da;transition:background .15s;
+}
+.card:hover::before{background:#e3000b}
+.card.disabled{opacity:.45;pointer-events:none;cursor:default}
+.card.disabled::before{background:#ddd}
+
+.card-icon{font-size:28px;margin-bottom:14px}
+.card-title{font-size:15px;font-weight:700;color:#1a1a18;margin-bottom:6px}
+.card-desc{font-size:12px;color:#6b6b65;line-height:1.65;flex:1}
+.card-tags{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.card-tag{background:#f0f0ed;border-radius:3px;padding:2px 7px;font-size:10px;color:#888}
+.card-tag.active{background:#E6F1FB;color:#0C447C}
+.card-arrow{
+  position:absolute;bottom:20px;right:20px;
+  font-size:16px;color:#ccc;transition:color .15s,transform .15s;
+}
+.card:hover .card-arrow{color:#e3000b;transform:translateX(3px)}
+.card-status{
+  position:absolute;top:16px;right:16px;
+  font-size:9px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;padding:2px 7px;border-radius:3px;
+}
+.card-status.live{background:#E1F5EE;color:#085041}
+.card-status.soon{background:#ebebE7;color:#999}
+.card-status.new{background:#FDF3DC;color:#7A4F00}
+
+/* ── INFO LIŠTA ── */
+.info-bar{
+  background:#fff;border:0.5px solid rgba(0,0,0,0.1);
+  border-radius:10px;padding:16px 20px;
+  display:flex;gap:32px;flex-wrap:wrap;
+  margin-bottom:40px;
+}
+.info-item{display:flex;flex-direction:column;gap:2px}
+.info-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa}
+.info-value{font-size:13px;font-weight:600;color:#1a1a18}
+
+/* ── FOOTER ── */
+.footer{
+  background:#1a1a18;padding:20px 40px;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+.footer-copy{font-size:10px;color:#444}
+.footer-copy strong{color:#666}
+
+/* ── ŽIVÝ ČAS ── */
+#live-time{font-size:11px;color:#555;font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-logo">
+    <div class="logo-main"><span>BALADA</span></div>
+    <div class="logo-sep"></div>
+    <div class="logo-sub">Interný portál</div>
+  </div>
+  <div class="header-meta">
+    <strong id="live-date"></strong><br>
+    <span id="live-time"></span>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-title">Systém riadenia<br><strong>maloobchodnej predajne</strong></div>
+    <div class="hero-sub">Analytické nástroje, reporty a prevádzková podpora pre predajne BALADA. Všetky nástroje fungujú offline — dáta zostávajú v prehliadači.</div>
+    <div class="hero-badges">
+      <div class="badge red">BALADA Březinky</div>
+      <div class="badge red">BALADA Jihlava</div>
+      <div class="badge">RAPO BRNO, s.r.o.</div>
+      <div class="badge">PROFIKASA</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- Info lišta -->
+  <div class="info-bar">
+    <div class="info-item">
+      <div class="info-label">Prevádzky</div>
+      <div class="info-value">Březinky · Jihlava</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Pokladňový systém</div>
+      <div class="info-value">PROFIKASA</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Formát exportu</div>
+      <div class="info-value">Sestava XLSX</div>
+    </div>
+    <div class="info-item">
+      <div class="info-label">Správca systému</div>
+      <div class="info-value">Ing. Richard Pouš</div>
+    </div>
+  </div>
+
+  <!-- Reporty -->
+  <div class="section-title">Reporty a analýzy</div>
+  <div class="cards">
+
+    <a class="card" href="denny-report.html">
+      <div class="card-status live">Aktívne</div>
+      <div class="card-icon">📊</div>
+      <div class="card-title">Denný report</div>
+      <div class="card-desc">Kompletná analýza predajného dňa — tržby, transakcie, hodinový profil, ABC analýza, promo, košík. AI manažérsky komentár s počasím a sviatkami.</div>
+      <div class="card-tags">
+        <span class="card-tag active">AI analýza</span>
+        <span class="card-tag active">Počasie</span>
+        <span class="card-tag">Sestava XLSX</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="card disabled" href="#">
+      <div class="card-status soon">Čoskoro</div>
+      <div class="card-icon">📈</div>
+      <div class="card-title">Týždenný report</div>
+      <div class="card-desc">Súhrnná analýza 7 dní — trendy, porovnanie dní, ABC strategická tabuľka, vývoj kategórií a zákazníckeho správania v čase.</div>
+      <div class="card-tags">
+        <span class="card-tag">AI analýza</span>
+        <span class="card-tag">Trendy</span>
+        <span class="card-tag">Sestava XLSX</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="card disabled" href="#">
+      <div class="card-status soon">Čoskoro</div>
+      <div class="card-icon">📉</div>
+      <div class="card-title">Mesačný report</div>
+      <div class="card-desc">Mesačný prehľad výkonnosti predajne, sortimentová analýza, maržová bilancia a strategické odporúčania pre nasledujúci mesiac.</div>
+      <div class="card-tags">
+        <span class="card-tag">AI analýza</span>
+        <span class="card-tag">Marža</span>
+        <span class="card-tag">Sortiment</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="card" href="historia.html">
+      <div class="card-status new">Nové</div>
+      <div class="card-icon">📅</div>
+      <div class="card-title">História reportov</div>
+      <div class="card-desc">Trendy v čase, porovnanie ľubovoľných dvoch dní, detail každého dňa a AI strategická diagnóza za vybrané obdobie.</div>
+      <div class="card-tags">
+        <span class="card-tag active">Trendy</span>
+        <span class="card-tag active">AI diagnóza</span>
+        <span class="card-tag">localStorage</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </div>
+
+  <!-- Nástroje -->
+  <div class="section-title">Prevádzková podpora</div>
+  <div class="cards">
+
+    <a class="card" href="balada_cenovky.html">
+      <div class="card-status live">Aktívne</div>
+      <div class="card-icon">🏷️</div>
+      <div class="card-title">Generátor cenoviek</div>
+      <div class="card-desc">Tlač cenoviek vo formátoch A4, A5 a A6. Editovateľné polia, typ Štandardná / Nová cena. Priama tlač z prehliadača.</div>
+      <div class="card-tags">
+        <span class="card-tag active">A4 · A5 · A6</span>
+        <span class="card-tag">Tlač</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="card disabled" href="#">
+      <div class="card-status soon">Čoskoro</div>
+      <div class="card-icon">📦</div>
+      <div class="card-title">Sortimentová analýza</div>
+      <div class="card-desc">Výkonnosť kategórií v čase, mŕtvy sortiment, ABC podľa kategórie, cross-sell príležitosti a odporúčania pre nákupcu.</div>
+      <div class="card-tags">
+        <span class="card-tag">Kategórie</span>
+        <span class="card-tag">ABC</span>
+        <span class="card-tag">AI</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+    <a class="card disabled" href="#">
+      <div class="card-status soon">Čoskoro</div>
+      <div class="card-icon">📋</div>
+      <div class="card-title">Interné oznamy</div>
+      <div class="card-desc">Zdieľané poznámky a operatívne informácie pre tím predajne. Úlohy, upozornenia a komunikácia medzi predajňami.</div>
+      <div class="card-tags">
+        <span class="card-tag">Tím</span>
+        <span class="card-tag">Komunikácia</span>
+      </div>
+      <div class="card-arrow">→</div>
+    </a>
+
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-copy">© 2026 <strong>Ing. Richard Pouš</strong> · RAPO BRNO, s.r.o. · Všetky práva vyhradené</div>
+  <div class="footer-copy">BALADA Březinky · BALADA Jihlava</div>
+</div>
+
+<script>
+function updateTime(){
+  var now=new Date();
+  var days=['Nedeľa','Pondelok','Utorok','Streda','Štvrtok','Piatok','Sobota'];
+  var months=['január','február','marec','apríl','máj','jún','júl','august','september','október','november','december'];
+  document.getElementById('live-date').textContent=
+    days[now.getDay()]+', '+now.getDate()+'. '+months[now.getMonth()]+' '+now.getFullYear();
+  document.getElementById('live-time').textContent=
+    now.getHours().toString().padStart(2,'0')+':'+
+    now.getMinutes().toString().padStart(2,'0')+':'+
+    now.getSeconds().toString().padStart(2,'0');
+}
+updateTime();
+setInterval(updateTime,1000);
+</script>
+
+</body>
+</html>

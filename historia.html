@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="author" content="Ing. Richard Pouš">
+<title>BALADA · História reportov</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:#1a1a18;font-size:13px}
+
+/* ── HEADER ── */
+.header{background:#1a1a18;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:3px solid #e3000b;position:sticky;top:0;z-index:100}
+.header-left{display:flex;align-items:center;gap:12px}
+.logo{font-size:18px;font-weight:900;color:#fff}
+.logo span{color:#e3000b}
+.logo-sep{width:1px;height:16px;background:#333}
+.logo-sub{font-size:10px;color:#555;letter-spacing:.08em;text-transform:uppercase}
+.header-back{font-size:11px;color:#555;text-decoration:none;padding:5px 10px;border:0.5px solid #333;border-radius:5px;transition:color .15s}
+.header-back:hover{color:#aaa}
+
+/* ── TOOLBAR ── */
+.toolbar{background:#fff;border-bottom:0.5px solid #e0e0da;padding:12px 32px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.tb-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa}
+.period-btns{display:flex;gap:4px}
+.period-btn{background:#f5f5f2;border:0.5px solid #e0e0da;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:Arial;color:#555;transition:all .15s}
+.period-btn.active,.period-btn:hover{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.tb-sep{width:1px;height:24px;background:#e0e0da}
+.tb-count{font-size:11px;color:#aaa;margin-left:auto}
+.btn-ai{background:#378ADD;color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;font-family:Arial;display:flex;align-items:center;gap:6px}
+.btn-ai:hover{background:#185FA5}
+.btn-ai:disabled{background:#ccc;cursor:not-allowed}
+
+/* ── MAIN GRID ── */
+.main{padding:24px 32px;display:grid;gap:16px}
+
+/* ── KARTY ── */
+.card{background:#fff;border:0.5px solid rgba(0,0,0,0.1);border-radius:12px;padding:20px 24px}
+.card-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#aaa;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.card-title span{color:#1a1a18;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0}
+
+/* ── KPI SUMMARY ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi-box{background:#f5f5f2;border-radius:8px;padding:12px 14px}
+.kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#aaa;margin-bottom:4px}
+.kpi-val{font-size:20px;font-weight:700;color:#1a1a18;line-height:1}
+.kpi-sub{font-size:10px;color:#aaa;margin-top:3px}
+.kpi-trend{font-size:10px;font-weight:700;margin-left:6px}
+.kpi-trend.up{color:#5DCAA5}
+.kpi-trend.down{color:#D85A30}
+
+/* ── GRAFY ── */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.chart-wrap{position:relative}
+
+/* ── POROVNANIE ── */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.compare-sel{display:flex;flex-direction:column;gap:8px}
+.compare-sel label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aaa}
+.compare-sel select{background:#f5f5f2;border:0.5px solid #e0e0da;border-radius:6px;padding:7px 10px;font-size:12px;font-family:Arial;color:#1a1a18;outline:none;cursor:pointer}
+.compare-sel select:focus{border-color:#378ADD}
+.btn-compare{background:#1a1a18;color:#fff;border:none;border-radius:7px;padding:9px 18px;font-size:12px;font-weight:700;cursor:pointer;font-family:Arial;margin-top:4px;width:100%}
+.btn-compare:hover{background:#333}
+.compare-result{display:none}
+.compare-result.show{display:block}
+.cmp-row{display:flex;align-items:center;padding:7px 0;border-bottom:0.5px solid #f0f0ed;font-size:12px;gap:8px}
+.cmp-row:last-child{border-bottom:none}
+.cmp-label{flex:1;color:#6b6b65;font-size:11px}
+.cmp-a{width:110px;text-align:right;font-weight:600;color:#1a1a18}
+.cmp-b{width:110px;text-align:right;font-weight:600;color:#1a1a18}
+.cmp-diff{width:70px;text-align:right;font-size:11px;font-weight:700}
+.cmp-diff.pos{color:#5DCAA5}
+.cmp-diff.neg{color:#D85A30}
+.cmp-diff.neu{color:#aaa}
+.cmp-header{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:.06em}
+
+/* ── DETAIL DŇA ── */
+.detail-empty{font-size:12px;color:#aaa;padding:20px 0;text-align:center}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.detail-item{background:#f5f5f2;border-radius:7px;padding:10px 12px}
+.detail-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#aaa;margin-bottom:3px}
+.detail-val{font-size:16px;font-weight:700;color:#1a1a18}
+.detail-sub{font-size:10px;color:#aaa;margin-top:2px}
+.detail-badge{display:inline-block;padding:2px 7px;border-radius:3px;font-size:9px;font-weight:700;text-transform:uppercase;margin-bottom:8px}
+.detail-badge.above{background:#E1F5EE;color:#085041}
+.detail-badge.below{background:#FAECE7;color:#712B13}
+.detail-badge.avg{background:#E6F1FB;color:#0C447C}
+
+/* ── AI SEKCIA ── */
+.ai-result{display:none;margin-top:16px;padding:20px;background:#f5f5f2;border-radius:10px;border-left:3px solid #378ADD}
+.ai-result.show{display:block}
+.ai-result h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#378ADD;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid #E6F1FB}
+.ai-result h4:first-child{margin-top:0}
+.ai-result p{font-size:13px;color:#2a2a28;line-height:1.75;margin-bottom:8px}
+.ai-result ul{padding-left:0;list-style:none;margin-bottom:8px}
+.ai-result ul li{padding:8px 12px 8px 28px;position:relative;background:#fff;border-radius:6px;margin-bottom:6px;font-size:12px;color:#2a2a28;line-height:1.6}
+.ai-result ul li::before{content:'→';position:absolute;left:10px;color:#378ADD;font-weight:700}
+.ai-result strong{color:#1a1a18;font-weight:600}
+.ai-loading{display:flex;align-items:center;gap:10px;color:#888;font-size:12px;padding:12px 0}
+.ai-spinner{width:16px;height:16px;border:2px solid #e0e0da;border-top-color:#378ADD;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── PRÁZDNY STAV ── */
+.empty-state{text-align:center;padding:60px 20px;color:#aaa}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:.3}
+.empty-title{font-size:16px;color:#888;margin-bottom:8px}
+.empty-sub{font-size:12px;color:#bbb;line-height:1.7}
+
+/* ── FOOTER ── */
+.footer{background:#1a1a18;padding:16px 32px;display:flex;align-items:center;justify-content:space-between;margin-top:40px}
+.footer-copy{font-size:10px;color:#444}
+
+@media(max-width:720px){
+  .charts-grid,.compare-grid,.detail-grid{grid-template-columns:1fr}
+  .main{padding:16px}
+  .toolbar{padding:10px 16px}
+  .header{padding:0 16px}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo"><span>BALADA</span></div>
+    <div class="logo-sep"></div>
+    <div class="logo-sub">História reportov</div>
+  </div>
+  <a class="header-back" href="index.html">← Portál</a>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <span class="tb-label">Obdobie</span>
+  <div class="period-btns">
+    <button class="period-btn" onclick="setPeriod(7,this)">7 dní</button>
+    <button class="period-btn active" onclick="setPeriod(14,this)">14 dní</button>
+    <button class="period-btn" onclick="setPeriod(30,this)">30 dní</button>
+    <button class="period-btn" onclick="setPeriod(999,this)">Všetko</button>
+  </div>
+  <div class="tb-sep"></div>
+  <button class="btn-ai" id="btnAi" onclick="runAiDiagnoza()">
+    <span>✦</span> AI diagnóza obdobia
+  </button>
+  <span class="tb-count" id="tbCount"></span>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="mainContent">
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">📊</div>
+    <div class="empty-title">Žiadna história</div>
+    <div class="empty-sub">Vygenerujte aspoň jeden denný report.<br>Snapshoty sa ukladajú automaticky.</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <div class="footer-copy">© 2026 <strong style="color:#666">Ing. Richard Pouš</strong> · RAPO BRNO, s.r.o.</div>
+  <div class="footer-copy" id="footerMeta"></div>
+</div>
+
+<script>
+var HIST_KEY='balada_daily_history';
+var currentPeriod=14;
+var currentData=[];
+var chartTrzba=null,chartKosik=null,chartPromo=null,chartTx=null;
+
+// ── NAČÍTANIE HISTÓRIE ──
+function histLoad(){
+  try{var h=localStorage.getItem(HIST_KEY);return h?JSON.parse(h):[];}
+  catch(e){return[];}
+}
+
+function getApiKey(){
+  try{var k=localStorage.getItem('balada_apikey');if(k&&k.startsWith('sk-'))return k;}catch(e){}
+  return '';
+}
+
+function fmt(n){return Math.round(n).toLocaleString('sk');}
+function fmtD(n,d){return parseFloat(n).toFixed(d).replace('.',',');}
+
+// ── HLAVNÁ INICIALIZÁCIA ──
+function init(){
+  var all=histLoad();
+  document.getElementById('footerMeta').textContent=all.length+' uložených reportov';
+  if(all.length===0){
+    document.getElementById('emptyState').style.display='block';
+    document.getElementById('mainContent').innerHTML='<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-title">Žiadna história</div><div class="empty-sub">Vygenerujte aspoň jeden denný report v dennom reporte.<br>Snapshoty sa ukladajú automaticky.</div></div>';
+    return;
+  }
+  document.getElementById('emptyState').style.display='none';
+  setPeriod(14,document.querySelector('.period-btn.active'));
+}
+
+function setPeriod(days,btn){
+  currentPeriod=days;
+  document.querySelectorAll('.period-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  var all=histLoad().sort(function(a,b){return b.dateKey.localeCompare(a.dateKey);});
+  currentData=days>=999?all:all.slice(0,days);
+  document.getElementById('tbCount').textContent=currentData.length+' reportov';
+  renderAll();
+}
+
+function renderAll(){
+  if(currentData.length===0)return;
+  var html='';
+  // KPI súhrn
+  html+=renderKpiSummary();
+  // Grafy
+  html+='<div class="charts-grid">';
+  html+='<div class="card"><div class="card-title">Tržba v čase (Kč)</div><div class="chart-wrap" style="height:200px"><canvas id="chartTrzba"></canvas></div></div>';
+  html+='<div class="card"><div class="card-title">Priemerný košík (Kč)</div><div class="chart-wrap" style="height:200px"><canvas id="chartKosik"></canvas></div></div>';
+  html+='<div class="card"><div class="card-title">Počet transakcií</div><div class="chart-wrap" style="height:180px"><canvas id="chartTx"></canvas></div></div>';
+  html+='<div class="card"><div class="card-title">Promo podiel (%)</div><div class="chart-wrap" style="height:180px"><canvas id="chartPromo"></canvas></div></div>';
+  html+='</div>';
+  // Porovnanie + Detail
+  html+='<div class="compare-grid">';
+  html+=renderComparePanel();
+  html+=renderDetailPanel();
+  html+='</div>';
+  // AI
+  html+='<div class="card" id="aiCard"><div class="card-title">✦ AI diagnóza obdobia <span id="aiPeriodLabel">'+currentData.length+' dní</span></div><div id="aiResult"></div></div>';
+
+  document.getElementById('mainContent').innerHTML=html;
+
+  // Inicializuj grafy
+  requestAnimationFrame(function(){
+    initCharts();
+    populateCompareSelects();
+  });
+}
+
+// ── KPI SÚHRN ──
+function renderKpiSummary(){
+  var d=currentData;
+  if(!d.length)return'';
+  var avgTrzba=d.reduce(function(s,x){return s+x.trzba;},0)/d.length;
+  var maxTrzba=Math.max.apply(null,d.map(function(x){return x.trzba;}));
+  var minTrzba=Math.min.apply(null,d.map(function(x){return x.trzba;}));
+  var avgKosik=d.reduce(function(s,x){return s+(x.avg_tx||0);},0)/d.length;
+  var avgPromo=d.reduce(function(s,x){return s+(x.promoRatio||0);},0)/d.length;
+  var avgTx=d.reduce(function(s,x){return s+(x.tx_count||0);},0)/d.length;
+  var celkom=d.reduce(function(s,x){return s+x.trzba;},0);
+
+  // Trend: porovnaj prvú a druhú polovicu
+  var half=Math.floor(d.length/2);
+  var newer=d.slice(0,half),older=d.slice(half);
+  var trendTrzba=older.length?((newer.reduce(function(s,x){return s+x.trzba;},0)/newer.length)/(older.reduce(function(s,x){return s+x.trzba;},0)/older.length)-1)*100:0;
+
+  return '<div class="card"><div class="card-title">Súhrn obdobia <span>'+currentData.length+' dní</span></div>'
+    +'<div class="kpi-row">'
+    +'<div class="kpi-box"><div class="kpi-label">Celková tržba</div><div class="kpi-val">'+fmt(celkom)+' Kč</div><div class="kpi-sub">za '+d.length+' dní</div></div>'
+    +'<div class="kpi-box"><div class="kpi-label">Priemerná denná</div><div class="kpi-val">'+fmt(avgTrzba)+' Kč</div><div class="kpi-sub">trend <span class="kpi-trend '+(trendTrzba>=0?'up':'down')+'">'+(trendTrzba>=0?'+':'')+fmtD(trendTrzba,1)+'%</span></div></div>'
+    +'<div class="kpi-box"><div class="kpi-label">Maximum</div><div class="kpi-val">'+fmt(maxTrzba)+' Kč</div><div class="kpi-sub">najlepší deň</div></div>'
+    +'<div class="kpi-box"><div class="kpi-label">Minimum</div><div class="kpi-val">'+fmt(minTrzba)+' Kč</div><div class="kpi-sub">najslabší deň</div></div>'
+    +'<div class="kpi-box"><div class="kpi-label">Priem. košík</div><div class="kpi-val">'+fmt(avgKosik)+' Kč</div><div class="kpi-sub">na transakciu</div></div>'
+    +'<div class="kpi-box"><div class="kpi-label">Priem. transakcie</div><div class="kpi-val">'+fmt(avgTx)+'</div><div class="kpi-sub">za deň</div></div>'
+    +'<div class="kpi-box"><div class="kpi-label">Priem. promo</div><div class="kpi-val">'+fmtD(avgPromo,1)+' %</div><div class="kpi-sub">z tržby</div></div>'
+    +'</div></div>';
+}
+
+// ── GRAFY ──
+function initCharts(){
+  var d=[...currentData].reverse(); // chronologicky
+  var labels=d.map(function(x){var p=x.datum.replace(/\s/g,'').split('.');return p[0]+'.'+p[1];});
+  var colors=d.map(function(x){
+    var dow=new Date(x.dateKey).getDay();
+    return dow===5||dow===6?'rgba(55,138,221,0.85)':'rgba(55,138,221,0.5)';
+  });
+  var opts={responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:9},maxRotation:45},grid:{display:false}},y:{ticks:{font:{size:10}},grid:{color:'rgba(0,0,0,0.05)'}}}};
+
+  // Tržba
+  var ctx1=document.getElementById('chartTrzba');
+  if(ctx1&&window.Chart){
+    if(chartTrzba)chartTrzba.destroy();
+    chartTrzba=new Chart(ctx1,{type:'bar',data:{labels:labels,datasets:[{data:d.map(function(x){return x.trzba;}),backgroundColor:colors,borderRadius:3}]},options:JSON.parse(JSON.stringify(opts))});
+  }
+  // Košík
+  var ctx2=document.getElementById('chartKosik');
+  if(ctx2&&window.Chart){
+    if(chartKosik)chartKosik.destroy();
+    var o2=JSON.parse(JSON.stringify(opts));
+    chartKosik=new Chart(ctx2,{type:'line',data:{labels:labels,datasets:[{data:d.map(function(x){return x.avg_tx||0;}),borderColor:'#5DCAA5',backgroundColor:'rgba(93,202,165,0.1)',pointBackgroundColor:'#5DCAA5',pointRadius:3,borderWidth:2,tension:0.3,fill:true}]},options:o2});
+  }
+  // Transakcie
+  var ctx3=document.getElementById('chartTx');
+  if(ctx3&&window.Chart){
+    if(chartTx)chartTx.destroy();
+    var o3=JSON.parse(JSON.stringify(opts));
+    chartTx=new Chart(ctx3,{type:'bar',data:{labels:labels,datasets:[{data:d.map(function(x){return x.tx_count||0;}),backgroundColor:'rgba(93,202,165,0.6)',borderRadius:2}]},options:o3});
+  }
+  // Promo
+  var ctx4=document.getElementById('chartPromo');
+  if(ctx4&&window.Chart){
+    if(chartPromo)chartPromo.destroy();
+    var o4=JSON.parse(JSON.stringify(opts));
+    // Varovná línia 25%
+    o4.plugins.annotation={annotations:{line1:{type:'line',yMin:25,yMax:25,borderColor:'rgba(216,90,48,0.5)',borderWidth:1,borderDash:[4,4]}}};
+    chartPromo=new Chart(ctx4,{type:'bar',data:{labels:labels,datasets:[{data:d.map(function(x){return x.promoRatio||0;}),backgroundColor:d.map(function(x){return(x.promoRatio||0)>25?'rgba(216,90,48,0.7)':'rgba(55,138,221,0.5)';}),borderRadius:2}]},options:o4});
+  }
+}
+
+// ── POROVNANIE ──
+function renderComparePanel(){
+  return '<div class="card"><div class="card-title">Porovnanie 2 dní</div>'
+    +'<div class="compare-sel">'
+    +'<div><label>Deň A</label><select id="selA"></select></div>'
+    +'<div><label>Deň B</label><select id="selB"></select></div>'
+    +'<button class="btn-compare" onclick="doCompare()">Porovnať →</button>'
+    +'</div>'
+    +'<div class="compare-result" id="compareResult"></div>'
+    +'</div>';
+}
+
+function populateCompareSelects(){
+  var sel=['selA','selB'];
+  sel.forEach(function(id,idx){
+    var el=document.getElementById(id);
+    if(!el)return;
+    el.innerHTML=currentData.map(function(d,i){
+      return '<option value="'+i+'"'+(i===idx?' selected':'')+'>'+d.datum+' ('+d.den+')</option>';
+    }).join('');
+  });
+}
+
+function doCompare(){
+  var a=currentData[parseInt(document.getElementById('selA').value)];
+  var b=currentData[parseInt(document.getElementById('selB').value)];
+  if(!a||!b)return;
+  var rows=[
+    {l:'Tržba',av:fmt(a.trzba)+' Kč',bv:fmt(b.trzba)+' Kč',d:a.trzba&&b.trzba?((a.trzba-b.trzba)/b.trzba*100):null},
+    {l:'Transakcie',av:fmt(a.tx_count),bv:fmt(b.tx_count),d:a.tx_count&&b.tx_count?((a.tx_count-b.tx_count)/b.tx_count*100):null},
+    {l:'Priem. košík',av:fmt(a.avg_tx)+' Kč',bv:fmt(b.avg_tx)+' Kč',d:a.avg_tx&&b.avg_tx?((a.avg_tx-b.avg_tx)/b.avg_tx*100):null},
+    {l:'Promo podiel',av:(a.promoRatio||0)+'%',bv:(b.promoRatio||0)+'%',d:null},
+    {l:'J1 nákupy',av:(a.j1pct||'—')+'%',bv:(b.j1pct||'—')+'%',d:null},
+    {l:'J5+ nákupy',av:(a.j5pct||'—')+'%',bv:(b.j5pct||'—')+'%',d:null},
+    {l:'Marža',av:a.marza_pct?fmtD(a.marza_pct,1)+'%':'—',bv:b.marza_pct?fmtD(b.marza_pct,1)+'%':'—',d:a.marza_pct&&b.marza_pct?a.marza_pct-b.marza_pct:null,ispp:true},
+  ];
+  var html='<div style="margin-top:12px">'
+    +'<div class="cmp-row"><span class="cmp-label"></span><span class="cmp-a cmp-header">'+a.datum+'</span><span class="cmp-b cmp-header">'+b.datum+'</span><span class="cmp-diff cmp-header">Δ</span></div>'
+    +rows.map(function(r){
+      var dcls='neu',dtxt='—';
+      if(r.d!==null){dtxt=(r.d>=0?'+':'')+fmtD(r.d,1)+(r.ispp?' pp':'%');dcls=r.d>0?'pos':'neg';}
+      return '<div class="cmp-row"><span class="cmp-label">'+r.l+'</span><span class="cmp-a">'+r.av+'</span><span class="cmp-b">'+r.bv+'</span><span class="cmp-diff '+dcls+'">'+dtxt+'</span></div>';
+    }).join('')+'</div>';
+  var el=document.getElementById('compareResult');
+  if(el){el.innerHTML=html;el.classList.add('show');}
+}
+
+// ── DETAIL DŇA ──
+function renderDetailPanel(){
+  return '<div class="card" id="detailPanel"><div class="card-title">Detail dňa <span id="detailTitle">klikni na stĺpec v grafe</span></div>'
+    +'<div class="detail-empty" id="detailEmpty">Klikni na stĺpec v grafe tržby pre detail dňa</div>'
+    +'<div id="detailContent" style="display:none"></div>'
+    +'</div>';
+}
+
+function showDetail(idx){
+  var all=[...currentData].reverse();
+  var d=all[idx];
+  if(!d)return;
+  var avg=currentData.reduce(function(s,x){return s+x.trzba;},0)/currentData.length;
+  var diff=(d.trzba-avg)/avg*100;
+  var badge=Math.abs(diff)<5?'avg':diff>0?'above':'below';
+  var badgeText=Math.abs(diff)<5?'priemer':diff>0?'nad priemerom':'pod priemerom';
+  var html='<span class="detail-badge '+badge+'">'+badgeText+' ('+fmtD(diff,1)+'%)</span>'
+    +'<div class="detail-grid">'
+    +'<div class="detail-item"><div class="detail-label">Tržba</div><div class="detail-val">'+fmt(d.trzba)+' Kč</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Transakcie</div><div class="detail-val">'+fmt(d.tx_count)+'</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Priem. košík</div><div class="detail-val">'+fmt(d.avg_tx)+' Kč</div></div>'
+    +'<div class="detail-item"><div class="detail-label">Promo podiel</div><div class="detail-val">'+(d.promoRatio||0)+' %</div></div>'
+    +(d.j1pct?'<div class="detail-item"><div class="detail-label">J1 nákupy</div><div class="detail-val">'+d.j1pct+' %</div></div>':'')
+    +(d.j5pct?'<div class="detail-item"><div class="detail-label">J5+ nákupy</div><div class="detail-val">'+d.j5pct+' %</div></div>':'')
+    +(d.marza_pct?'<div class="detail-item"><div class="detail-label">Marža</div><div class="detail-val">'+fmtD(d.marza_pct,1)+' %</div></div>':'')
+    +(d.marza_kc?'<div class="detail-item"><div class="detail-label">Marža Kč</div><div class="detail-val">'+fmt(d.marza_kc)+' Kč</div></div>':'')
+    +(d.karta?'<div class="detail-item"><div class="detail-label">Karta</div><div class="detail-val">'+fmt(d.karta)+' Kč</div></div>':'')
+    +(d.cash?'<div class="detail-item"><div class="detail-label">Hotovosť</div><div class="detail-val">'+fmt(d.cash)+' Kč</div></div>':'')
+    +'</div>';
+  document.getElementById('detailTitle').textContent=d.datum+' · '+d.den;
+  document.getElementById('detailEmpty').style.display='none';
+  var dc=document.getElementById('detailContent');
+  if(dc){dc.innerHTML=html;dc.style.display='block';}
+}
+
+// Prepojenie kliknutia na graf
+var origInitCharts=initCharts;
+initCharts=function(){
+  origInitCharts();
+  // Pridaj onclick na chartTrzba
+  setTimeout(function(){
+    var c=document.getElementById('chartTrzba');
+    if(c&&chartTrzba){
+      c.onclick=function(evt){
+        var pts=chartTrzba.getElementsAtEventForMode(evt,'nearest',{intersect:true},true);
+        if(pts.length)showDetail(pts[0].index);
+      };
+    }
+  },200);
+};
+
+// ── AI DIAGNÓZA ──
+async function runAiDiagnoza(){
+  var btn=document.getElementById('btnAi');
+  var container=document.getElementById('aiResult');
+  if(!container)return;
+  btn.disabled=true;
+  container.innerHTML='<div class="ai-loading"><div class="ai-spinner"></div><span>Generujem AI diagnózu za '+currentData.length+' dní...</span></div>';
+
+  var sorted=[...currentData].sort(function(a,b){return a.dateKey.localeCompare(b.dateKey);});
+  var avgTrzba=sorted.reduce(function(s,x){return s+x.trzba;},0)/sorted.length;
+  var avgKosik=sorted.reduce(function(s,x){return s+(x.avg_tx||0);},0)/sorted.length;
+  var avgPromo=sorted.reduce(function(s,x){return s+(x.promoRatio||0);},0)/sorted.length;
+  var maxD=sorted.reduce(function(a,b){return b.trzba>a.trzba?b:a;});
+  var minD=sorted.reduce(function(a,b){return b.trzba<a.trzba?b:a;});
+  // Trend
+  var half=Math.floor(sorted.length/2);
+  var newerAvg=sorted.slice(half).reduce(function(s,x){return s+x.trzba;},0)/Math.max(sorted.length-half,1);
+  var olderAvg=sorted.slice(0,half).reduce(function(s,x){return s+x.trzba;},0)/Math.max(half,1);
+  var trend=olderAvg?((newerAvg-olderAvg)/olderAvg*100):0;
+  // Denné priemery
+  var byDow={};
+  sorted.forEach(function(d){var dow=new Date(d.dateKey).getDay();if(!byDow[dow])byDow[dow]={sum:0,n:0};byDow[dow].sum+=d.trzba;byDow[dow].n++;});
+  var dowNames=['Ne','Po','Ut','St','Št','Pi','So'];
+  var dowStr=Object.entries(byDow).map(function(e){return dowNames[e[0]]+': '+fmt(e[1].sum/e[1].n)+' Kč';}).join(' | ');
+
+  var prompt='Si Martin Kovář, senior retail konzultant. Analyzuj históriu predajne BALADA Jihlava za posledných '+sorted.length+' dní.\n\n'
+    +'SÚHRNNÉ DÁTA:\n'
+    +'- Obdobie: '+sorted[0].datum+' — '+sorted[sorted.length-1].datum+'\n'
+    +'- Priemerná denná tržba: '+fmt(avgTrzba)+' Kč\n'
+    +'- Trend: '+(trend>=0?'+':'')+fmtD(trend,1)+'% (porovnanie prvej a druhej polovice)\n'
+    +'- Priemerný košík: '+fmt(avgKosik)+' Kč\n'
+    +'- Priemerný promo podiel: '+fmtD(avgPromo,1)+' %\n'
+    +'- Najlepší deň: '+maxD.datum+' ('+fmt(maxD.trzba)+' Kč)\n'
+    +'- Najslabší deň: '+minD.datum+' ('+fmt(minD.trzba)+' Kč)\n'
+    +'- Priemer podľa dní týždňa: '+dowStr+'\n\n'
+    +'DENNÉ DÁTA (chronologicky):\n'
+    +sorted.map(function(d){return d.datum+' ('+d.den+'): '+fmt(d.trzba)+' Kč, košík '+fmt(d.avg_tx)+' Kč, tx '+d.tx_count+(d.promoRatio?' promo '+d.promoRatio+'%':'')+(d.marza_pct?' marža '+fmtD(d.marza_pct,1)+'%':'');}).join('\n')+'\n\n'
+    +'VYPRACUJ STRATEGICKÚ DIAGNÓZU v 4 sekciách:\n'
+    +'<h4>1. Celkový trend a výkonnosť</h4> — je predajňa rastúca, klesajúca alebo stagnujúca? Porovnaj s normami 360m² sídliskového supermarketu.\n'
+    +'<h4>2. Vzorce a anomálie</h4> — ktoré dni sú systematicky silné/slabé? Anomálie? Promo závislosť?\n'
+    +'<h4>3. Zákaznícke správanie v čase</h4> — mení sa košík, frekvencia, štruktúra nákupov?\n'
+    +'<h4>4. Strategické odporúčania</h4> — 3-4 konkrétne opatrenia s číselným odôvodnením.\n\n'
+    +'FORMÁT: Čisté HTML, <h4> nadpisy, <p> text, <ul><li> zoznamy, <strong> kľúčové čísla. Žiadny markdown. Jazyk: slovenčina.';
+
+  try{
+    var apiKey=getApiKey();
+    var headers={'Content-Type':'application/json'};
+    if(apiKey){headers['x-api-key']=apiKey;headers['anthropic-version']='2023-06-01';headers['anthropic-dangerous-direct-browser-access']='true';}
+    var resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',headers:headers,
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2500,
+        system:'Si retail analytik. Odpovedáš výhradne v čistom HTML bez markdown.',
+        messages:[{role:'user',content:prompt}]})
+    });
+    var json=await resp.json();
+    if(json.error)throw new Error(json.error.message);
+    var text=json.content&&json.content[0]?json.content[0].text:'';
+    text=text.replace(/```html/gi,'').replace(/```/g,'').trim();
+    container.innerHTML='<div class="ai-result show">'+text+'</div>';
+  }catch(err){
+    container.innerHTML='<div style="color:#D85A30;font-size:12px;padding:8px">⚠️ '+err.message+'<br><small>Skontrolujte API kľúč v dennom reporte (Nastavenia → 🔑)</small></div>';
+  }
+  btn.disabled=false;
+}
+
+// INIT
+window.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
