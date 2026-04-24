@@ -242,7 +242,7 @@ table.r-styled td:last-child{text-align:right;font-weight:500}
   </div>
   <div class="left-body">
 
-    <div class="sb-section" style="margin-top:0;border-top:none">História reportov</div>
+    <div class="sb-section" style="margin-top:0;border-top:none;color:#5DCAA5">📅 História reportov</div>
     <div class="hist-list" id="histList"></div>
     <div class="hist-count" id="histCount"></div>
 
@@ -1033,13 +1033,16 @@ function renderReport(D){
     }).join('');
   }
   t10El.innerHTML='<div class="t10-triple">'
-    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#378ADD"></div><span class="t10-col-hdr-title">Podľa tržby (Kč)</span></div>'+renderMiniList(D.top10,'#378ADD','Kč')+'</div>'
-    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#5DCAA5"></div><span class="t10-col-hdr-title">Podľa množstva (ks)</span></div>'+renderMiniList(D.top10ks,'#5DCAA5','ks')+'</div>'
-    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#D85A30"></div><span class="t10-col-hdr-title">Podľa košíkov</span></div>'+renderMiniList(D.top10dok,'#D85A30','košíkov')+'</div>'
+    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#378ADD"></div><span class="t10-col-hdr-title">Podľa tržby (Kč)</span></div>'+(D.top10&&D.top10.length>0?renderMiniList(D.top10,'#378ADD','Kč'):'<p style="font-size:11px;color:#aaa;padding:8px 0">Nedostupné v snapshote</p>')+'</div>'
+    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#5DCAA5"></div><span class="t10-col-hdr-title">Podľa množstva (ks)</span></div>'+(D.top10ks&&D.top10ks.length>0?renderMiniList(D.top10ks,'#5DCAA5','ks'):'<p style="font-size:11px;color:#aaa;padding:8px 0">Nedostupné v snapshote</p>')+'</div>'
+    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#D85A30"></div><span class="t10-col-hdr-title">Podľa košíkov</span></div>'+(D.top10dok&&D.top10dok.length>0?renderMiniList(D.top10dok,'#D85A30','košíkov'):'<p style="font-size:11px;color:#aaa;padding:8px 0">Nedostupné v snapshote</p>')+'</div>'
   +'</div>';
   // Kategórie accordion
   var katEl=document.getElementById('r-kategorie');
   katEl.innerHTML='<p class="r-ctitle">Tržba podľa kategórie – kliknite pre rozbalenie</p>';
+  if(!D.katTree||D.katTree.length===0){
+    katEl.innerHTML+='<p style="font-size:11px;color:#aaa;padding:8px 0">Kategórie nie sú dostupné v snapshote.</p>';
+  } else {
   var maxKat=D.katTree.length>0?D.katTree[0].trzba:1;
   D.katTree.forEach(function(g,gi){
     var maxSub=g.subs.length>0?g.subs[0].trzba:1;
@@ -1079,6 +1082,7 @@ function renderReport(D){
     grp.className='kat-group';grp.appendChild(hdr);grp.appendChild(subsDiv);
     katEl.appendChild(grp);
   });
+  } // end if katTree
   // ABC KPI
   if(D.abc){
     var abcKpiEl=document.getElementById('r-abc-kpi');
@@ -1942,20 +1946,7 @@ function loadFromHistory(dateKey){
   var hist=histLoad();
   var snap=hist.find(function(h){return h.dateKey===dateKey;});
   if(!snap)return;
-  if(!currentData){
-    // Žiadne XLSX — zostavíme minimálny D zo snapshotu a renderujeme
-    alert('Pre zobrazenie detailu z histórie najprv nahrajte ľubovoľnú dennú Sestavu XLSX. Snapshot sa potom zobrazí automaticky.');
-    return;
-  }
-  // Prepíšeme currentData hodnotami zo snapshotu a vyrenderujeme
-  var D=currentData;
-  // Preload hodnôt zo snapshotu do reportu — len metriky ktoré máme
-  document.getElementById('emptyState').style.display='none';
-  document.getElementById('reportWrap').classList.remove('show');
-  document.getElementById('reportToolbar').style.display='none';
-  document.getElementById('loadingState').classList.add('show');
 
-  // Zostavíme D zo snapshotu pre zobrazenie
   var fakeD={
     datum:snap.datum, den:snap.den,
     trzba:snap.trzba, tx_count:snap.tx_count, avg_tx:snap.avg_tx,
@@ -1964,29 +1955,40 @@ function loadFromHistory(dateKey){
     karta:snap.karta||0, cash:snap.cash||0, strav:snap.strav||0,
     j1:0, j1pct:snap.j1pct||0, j5:0, j5pct:snap.j5pct||0,
     avg_kosik:snap.avg_kosik||0,
+    d12z:0, d21z:0, d0z:0, dphcel:0,
+    vrat:0, zrus_count:0, slevy:0, zaokr:0,
+    program:'—', top_akcie:[],
     hodiny_labels:[], hodiny_trzba:[], hodiny_tx:[],
     ticket:[0,0,0,0,0,0,0],
     kombos:[], top10:[], top10ks:[], top10dok:[],
-    kategorie:snap.top_kat?[{n:snap.top_kat,v:snap.trzba}]:[],
+    katTree:[], kategorie:snap.top_kat?[{n:snap.top_kat,v:snap.trzba}]:[],
     abc:snap.abc_a_count?{
-      total:snap.abc_a_count,totalTrzba:snap.trzba,
-      a:{count:snap.abc_a_count,trzba:snap.trzba*(snap.abc_a_pct/100),pct:snap.abc_a_pct||0},
-      b:{count:0,trzba:0,pct:0},c:{count:0,trzba:0,pct:0},
+      total:snap.abc_a_count, totalTrzba:snap.trzba,
+      a:{count:snap.abc_a_count, trzba:snap.trzba*((snap.abc_a_pct||0)/100), pct:snap.abc_a_pct||0},
+      b:{count:0,trzba:0,pct:0}, c:{count:0,trzba:0,pct:0},
       topA:[],topB:[],topC:[],all:[],pareto:[],
-      dayA:snap.trzba*(snap.abc_a_pct/100)||0,dayB:0,dayC:0
+      dayA:snap.trzba*((snap.abc_a_pct||0)/100), dayB:0, dayC:0
     }:null,
     marza:snap.marza_pct?{pct:snap.marza_pct,totalKc:snap.marza_kc||0,negCount:0,pokrytie:0}:null,
     vatData:{}, fromHistory:true
   };
-  // Upozornenie že ide o snapshot
+
+  // Nastav currentData pre prípad ďalšieho použitia
+  currentData=fakeD;
+
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('reportWrap').classList.remove('show');
+  document.getElementById('reportToolbar').style.display='none';
+  document.getElementById('loadingState').classList.add('show');
+
   setTimeout(function(){
     renderReport(fakeD);
-    // Zobraz banner
+    // Žltý banner
     var banner=document.createElement('div');
     banner.style.cssText='background:#FDF3DC;border:0.5px solid #C8860A;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7A4F00;display:flex;align-items:center;gap:8px';
-    banner.innerHTML='<span style="font-size:16px">📅</span><span>Zobrazený je uložený <strong>snapshot</strong> z '+snap.datum+' ('+snap.den+'). Niektoré sekcie sú nedostupné bez pôvodného XLSX súboru.</span>';
+    banner.innerHTML='<span style="font-size:16px">📅</span><span>Snapshot z <strong>'+snap.datum+' ('+snap.den+')</strong>. Grafy a detail produktov nie sú dostupné bez pôvodného XLSX.</span>';
     var rw=document.getElementById('reportWrap');
-    if(rw&&rw.firstChild)rw.insertBefore(banner,rw.firstChild);
+    if(rw)rw.insertBefore(banner,rw.firstChild);
   },300);
 }
 
