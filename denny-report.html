@@ -939,7 +939,11 @@ function generateReport(){
   document.getElementById('reportWrap').classList.remove('show');
   document.getElementById('reportToolbar').style.display='none';
   document.getElementById('loadingState').classList.add('show');
-  setTimeout(function(){renderReport(currentData);},300);
+  var D=currentData;
+  // Najprv skontroluj duplikát, po rozhodnutí renderuj
+  trySaveSnapshot(D, function(){
+    setTimeout(function(){renderReport(D, true);},300);
+  });
 }
 
 // ===== TOGGLE KAT =====
@@ -1147,8 +1151,6 @@ function renderReport(D, skipSave){
   document.getElementById('reportWrap').classList.add('show');
   // Maržová sekcia
   renderMarzaSection(D);
-  // Uložiť snapshot do histórie (len pri reálnom generovaní, nie z histórie)
-  if(!skipSave) trySaveSnapshot(D);
   // Spustiť AI analýzu
   runAiAnalysis();
   // Grafy — počkaj kým sú canvasy viditeľné (GitHub Pages potrebuje dlhší timeout)
@@ -1905,13 +1907,13 @@ function buildSnapshot(D){
   };
 }
 
-function trySaveSnapshot(D){
+function trySaveSnapshot(D, onDone){
   var snap=buildSnapshot(D);
-  if(!snap.dateKey)return;
+  if(!snap.dateKey){if(onDone)onDone();return;}
   var hist=histLoad();
   var existing=hist.findIndex(function(h){return h.dateKey===snap.dateKey;});
   if(existing>=0){
-    _pendingSnapshot={snap:snap,hist:hist,idx:existing};
+    _pendingSnapshot={snap:snap,hist:hist,idx:existing,onDone:onDone};
     document.getElementById('dupDate').textContent=D.datum+(D.den?' ('+D.den+')':'');
     document.getElementById('dupOverlay').classList.add('show');
   }else{
@@ -1919,12 +1921,16 @@ function trySaveSnapshot(D){
     if(hist.length>120)hist=hist.slice(0,120);
     histSave(hist);
     renderHistList();
+    if(onDone)onDone();
   }
 }
 
 function dupCancel(){
   document.getElementById('dupOverlay').classList.remove('show');
+  // Pokračuj bez uloženia
+  var cb=_pendingSnapshot&&_pendingSnapshot.onDone;
   _pendingSnapshot=null;
+  if(cb)cb();
 }
 
 function dupOverwrite(){
@@ -1935,7 +1941,9 @@ function dupOverwrite(){
   h.unshift(_pendingSnapshot.snap);
   histSave(h);
   renderHistList();
+  var cb=_pendingSnapshot.onDone;
   _pendingSnapshot=null;
+  if(cb)cb();
 }
 
 function histDelete(dateKey,e){
