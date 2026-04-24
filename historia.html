@@ -32,6 +32,16 @@ html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:
 .btn-ai:hover{background:#185FA5}
 .btn-ai:disabled{background:#ccc;cursor:not-allowed}
 
+/* ── DOW FILTER ── */
+.dow-row{display:flex;gap:4px;flex-wrap:wrap}
+.dow-btn{background:#f5f5f2;border:0.5px solid #e0e0da;border-radius:5px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:Arial;color:#555;transition:all .15s;min-width:36px;text-align:center}
+.dow-btn:hover{border-color:#1a1a18;color:#1a1a18}
+.dow-btn.active{background:#1a1a18;color:#fff;border-color:#1a1a18}
+.dow-btn.has-data{border-style:solid}
+.dow-btn.no-data{opacity:.35;cursor:default}
+.dow-clear{background:none;border:0.5px solid #e0e0da;border-radius:5px;padding:5px 10px;font-size:11px;color:#aaa;cursor:pointer;font-family:Arial;transition:all .15s}
+.dow-clear:hover{border-color:#e3000b;color:#e3000b}
+
 /* ── MAIN GRID ── */
 .main{padding:24px 32px;display:grid;gap:16px}
 
@@ -141,6 +151,18 @@ html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:
     <button class="period-btn" onclick="setPeriod(999,this)">Všetko</button>
   </div>
   <div class="tb-sep"></div>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Deň týždňa</span>
+  <div class="dow-row" id="dowRow">
+    <button class="dow-btn" onclick="setDow(1,this)" title="Pondelok">Po</button>
+    <button class="dow-btn" onclick="setDow(2,this)" title="Utorok">Ut</button>
+    <button class="dow-btn" onclick="setDow(3,this)" title="Streda">St</button>
+    <button class="dow-btn" onclick="setDow(4,this)" title="Štvrtok">Št</button>
+    <button class="dow-btn" onclick="setDow(5,this)" title="Piatok">Pi</button>
+    <button class="dow-btn" onclick="setDow(6,this)" title="Sobota">So</button>
+    <button class="dow-btn" onclick="setDow(0,this)" title="Nedeľa">Ne</button>
+    <button class="dow-clear" onclick="clearDow()" id="dowClear" style="display:none">× Zrušiť filter</button>
+  </div>
   <button class="btn-ai" id="btnAi" onclick="runAiDiagnoza()">
     <span>✦</span> AI diagnóza obdobia
   </button>
@@ -165,7 +187,9 @@ html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:
 <script>
 var HIST_KEY='balada_daily_history';
 var currentPeriod=14;
+var currentDow=-1; // -1 = všetky dni
 var currentData=[];
+var allPeriodData=[]; // všetky záznamy za obdobie pred DOW filtrom
 var chartTrzba=null,chartKosik=null,chartPromo=null,chartTx=null;
 
 // ── NAČÍTANIE HISTÓRIE ──
@@ -200,9 +224,61 @@ function setPeriod(days,btn){
   document.querySelectorAll('.period-btn').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
   var all=histLoad().sort(function(a,b){return b.dateKey.localeCompare(a.dateKey);});
-  currentData=days>=999?all:all.slice(0,days);
-  document.getElementById('tbCount').textContent=currentData.length+' reportov';
+  allPeriodData=days>=999?all:all.slice(0,days);
+  applyDowFilter();
+  updateDowButtons();
+}
+
+function setDow(dow,btn){
+  if(currentDow===dow){
+    clearDow();return;
+  }
+  currentDow=dow;
+  document.querySelectorAll('.dow-btn').forEach(function(b){b.classList.remove('active');});
+  if(btn)btn.classList.add('active');
+  document.getElementById('dowClear').style.display='';
+  applyDowFilter();
+}
+
+function clearDow(){
+  currentDow=-1;
+  document.querySelectorAll('.dow-btn').forEach(function(b){b.classList.remove('active');});
+  document.getElementById('dowClear').style.display='none';
+  applyDowFilter();
+}
+
+function applyDowFilter(){
+  if(currentDow===-1){
+    currentData=allPeriodData;
+  } else {
+    currentData=allPeriodData.filter(function(h){
+      return new Date(h.dateKey).getDay()===currentDow;
+    });
+  }
+  var label=currentDow===-1?currentData.length+' reportov':currentData.length+' reportov ('+['Ne','Po','Ut','St','Št','Pi','So'][currentDow]+')';
+  document.getElementById('tbCount').textContent=label;
   renderAll();
+}
+
+function updateDowButtons(){
+  // Označ tlačidlá pre ktoré existujú dáta
+  var dowCounts={};
+  allPeriodData.forEach(function(h){
+    var d=new Date(h.dateKey).getDay();
+    dowCounts[d]=(dowCounts[d]||0)+1;
+  });
+  document.querySelectorAll('.dow-btn').forEach(function(btn){
+    var dow=parseInt(btn.getAttribute('onclick').match(/setDow\((\d+)/)[1]);
+    if(dowCounts[dow]){
+      btn.classList.add('has-data');
+      btn.classList.remove('no-data');
+      btn.title=['Nedeľa','Pondelok','Utorok','Streda','Štvrtok','Piatok','Sobota'][dow]+' ('+dowCounts[dow]+'×)';
+    } else {
+      btn.classList.add('no-data');
+      btn.classList.remove('has-data');
+      btn.onclick=null;
+    }
+  });
 }
 
 function renderAll(){
