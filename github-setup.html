@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BALADA · GitHub Nastavenia</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,sans-serif;background:#f5f5f2;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.box{background:#1a1a18;border-radius:16px;padding:36px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,0.3)}
+.logo{font-size:20px;font-weight:900;color:#fff;margin-bottom:4px}<br>.logo span{color:#e3000b}
+.subtitle{font-size:11px;color:#444;text-transform:uppercase;letter-spacing:.08em;margin-bottom:28px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px;font-weight:700}
+.field input{width:100%;background:#111;border:0.5px solid #333;border-radius:7px;padding:10px 12px;font-size:13px;color:#eee;font-family:Arial;outline:none;transition:border-color .15s}
+.field input:focus{border-color:#378ADD}
+.hint{font-size:10px;color:#444;margin-top:4px;line-height:1.5}
+.hint a{color:#378ADD;text-decoration:none}
+.btn{width:100%;background:#378ADD;color:#fff;border:none;border-radius:8px;padding:13px;font-size:13px;font-weight:700;cursor:pointer;font-family:Arial;margin-top:8px;transition:background .15s}
+.btn:hover{background:#185FA5}
+.btn:disabled{background:#333;color:#555;cursor:not-allowed}
+.status{margin-top:14px;padding:12px;border-radius:8px;font-size:12px;text-align:center;display:none}
+.status.ok{background:#0A1F14;border:0.5px solid #1A5A30;color:#5DCAA5;display:block}
+.status.err{background:#1A0A08;border:0.5px solid #5A1A10;color:#D85A30;display:block}
+.status.info{background:#111;border:0.5px solid #333;color:#aaa;display:block}
+.divider{border:none;border-top:0.5px solid #252523;margin:20px 0}
+.saved-box{display:none;background:#0A1F14;border:0.5px solid #1A5A30;border-radius:8px;padding:14px;margin-bottom:20px}
+.saved-box.show{display:block}
+.saved-title{font-size:10px;color:#5DCAA5;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:8px}
+.saved-row{display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:0.5px solid rgba(255,255,255,0.05)}
+.saved-row:last-child{border-bottom:none}
+.saved-key{color:#555}
+.saved-val{color:#aaa;font-weight:500}
+.btn-clear{background:none;border:0.5px solid #333;color:#555;border-radius:5px;padding:5px 12px;font-size:10px;cursor:pointer;font-family:Arial;margin-top:10px;transition:all .15s}
+.btn-clear:hover{border-color:#D85A30;color:#D85A30}
+.step{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start}
+.step-num{width:22px;height:22px;border-radius:50%;background:#252523;color:#555;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.step-text{font-size:11px;color:#555;line-height:1.6}
+.step-text a{color:#378ADD;text-decoration:none}
+.step-text strong{color:#aaa}
+.back{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:#555;text-decoration:none;margin-bottom:24px;transition:color .15s}
+.back:hover{color:#aaa}
+</style>
+</head>
+<body>
+<div class="box">
+
+  <a class="back" href="index.html">← Späť na portál</a>
+
+  <div class="logo"><span>BALADA</span> · GitHub</div>
+  <div class="subtitle">Nastavenie úložiska histórie</div>
+
+  <!-- Aktuálne uložené nastavenia -->
+  <div class="saved-box" id="savedBox">
+    <div class="saved-title">✓ Uložené nastavenia</div>
+    <div class="saved-row"><span class="saved-key">Username</span><span class="saved-val" id="sv-owner">—</span></div>
+    <div class="saved-row"><span class="saved-key">Repozitár</span><span class="saved-val" id="sv-repo">—</span></div>
+    <div class="saved-row"><span class="saved-key">Token</span><span class="saved-val" id="sv-token">—</span></div>
+    <button class="btn-clear" onclick="clearSettings()">Vymazať nastavenia</button>
+  </div>
+
+  <!-- Návod -->
+  <div style="margin-bottom:20px">
+    <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;font-weight:700;margin-bottom:12px">Ako získať token</div>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-text">Otvor <a href="https://github.com/settings/tokens/new?scopes=repo&description=BALADA+Reports" target="_blank">github.com/settings/tokens/new</a></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-text">Note: <strong>BALADA Reports</strong> · Expiration: <strong>1 year</strong></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-text">Zaškrtni <strong>repo</strong> (celý riadok) → klikni Generate token</div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-text">Skopíruj token a vlož ho nižšie — zobrazí sa len raz!</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- Formulár -->
+  <div class="field">
+    <label>GitHub username</label>
+    <input id="f-owner" type="text" placeholder="pousrichard-rgb" autocomplete="off">
+  </div>
+  <div class="field">
+    <label>Repozitár</label>
+    <input id="f-repo" type="text" placeholder="balada-reports" autocomplete="off">
+    <div class="hint">Názov repozitára kde je web (zvyčajne balada-reports)</div>
+  </div>
+  <div class="field">
+    <label>Personal Access Token</label>
+    <input id="f-token" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+    <div class="hint">Token sa uloží len do tohto prehliadača. Nikam sa neodosiela okrem GitHub API.</div>
+  </div>
+
+  <button class="btn" id="btnSave" onclick="saveAndTest()">Uložiť a otestovať pripojenie</button>
+
+  <div class="status info" id="status" style="display:none"></div>
+
+</div>
+
+<script>
+var SK = 'balada_github_settings';
+
+function loadSaved(){
+  try{
+    var s = localStorage.getItem(SK);
+    if(!s) return;
+    var d = JSON.parse(s);
+    if(d.owner && d.repo && d.token){
+      document.getElementById('sv-owner').textContent = d.owner;
+      document.getElementById('sv-repo').textContent = d.repo;
+      document.getElementById('sv-token').textContent = d.token.substring(0,8)+'••••••••';
+      document.getElementById('savedBox').classList.add('show');
+      // Predvyplň formulár
+      document.getElementById('f-owner').value = d.owner;
+      document.getElementById('f-repo').value = d.repo;
+      document.getElementById('f-token').value = d.token;
+    }
+  }catch(e){}
+}
+
+function clearSettings(){
+  if(!confirm('Vymazať uložené nastavenia?')) return;
+  try{ localStorage.removeItem(SK); }catch(e){}
+  document.getElementById('savedBox').classList.remove('show');
+  document.getElementById('f-owner').value = '';
+  document.getElementById('f-repo').value = '';
+  document.getElementById('f-token').value = '';
+  showStatus('info', 'Nastavenia vymazané.');
+}
+
+function showStatus(type, msg){
+  var el = document.getElementById('status');
+  el.className = 'status '+type;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+async function saveAndTest(){
+  var owner = document.getElementById('f-owner').value.trim();
+  var repo  = document.getElementById('f-repo').value.trim();
+  var token = document.getElementById('f-token').value.trim();
+
+  if(!owner || !repo || !token){
+    showStatus('err', '⚠️ Vyplňte všetky tri polia.');
+    return;
+  }
+
+  var btn = document.getElementById('btnSave');
+  btn.disabled = true;
+  btn.textContent = 'Testujem pripojenie...';
+  showStatus('info', 'Pripájam sa na GitHub...');
+
+  try{
+    var r = await fetch('https://api.github.com/repos/'+owner+'/'+repo, {
+      headers:{
+        'Authorization': 'Bearer '+token,
+        'Accept': 'application/vnd.github+json'
+      }
+    });
+
+    if(r.ok){
+      // Uloži nastavenia
+      var settings = {owner:owner, repo:repo, token:token};
+      try{ localStorage.setItem(SK, JSON.stringify(settings)); }catch(e){}
+
+      showStatus('ok', '✓ Prepojenie úspešné! Nastavenia uložené. Môžeš zatvoriť túto stránku.');
+      btn.textContent = '✓ Uložené';
+      btn.style.background = '#1D9E75';
+
+      // Aktualizuj zobrazenie
+      document.getElementById('sv-owner').textContent = owner;
+      document.getElementById('sv-repo').textContent = repo;
+      document.getElementById('sv-token').textContent = token.substring(0,8)+'••••••••';
+      document.getElementById('savedBox').classList.add('show');
+
+      // Vytvor data/ priečinok ak neexistuje (prázdny README)
+      setTimeout(function(){ initGitHubRepo(owner, repo, token); }, 500);
+
+    } else if(r.status === 401){
+      showStatus('err', '⚠️ Neplatný token. Skontrolujte či ste ho správne skopírovali.');
+      btn.disabled = false;
+      btn.textContent = 'Uložiť a otestovať pripojenie';
+    } else if(r.status === 404){
+      showStatus('err', '⚠️ Repozitár nenájdený. Skontrolujte username a názov repozitára.');
+      btn.disabled = false;
+      btn.textContent = 'Uložiť a otestovať pripojenie';
+    } else {
+      showStatus('err', '⚠️ Chyba '+r.status+'. Skúste znova.');
+      btn.disabled = false;
+      btn.textContent = 'Uložiť a otestovať pripojenie';
+    }
+  }catch(e){
+    showStatus('err', '⚠️ Chyba: '+e.message);
+    btn.disabled = false;
+    btn.textContent = 'Uložiť a otestovať pripojenie';
+  }
+}
+
+// Inicializuj štruktúru repozitára
+async function initGitHubRepo(owner, repo, token){
+  var hdrs = {
+    'Authorization': 'Bearer '+token,
+    'Accept': 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'Content-Type': 'application/json'
+  };
+
+  // Skontroluj či existuje data/index.json
+  var r = await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/index.json', {headers:hdrs});
+  if(r.status === 404){
+    // Vytvor prázdny index
+    await fetch('https://api.github.com/repos/'+owner+'/'+repo+'/contents/data/index.json', {
+      method:'PUT', headers:hdrs,
+      body: JSON.stringify({
+        message: 'Inicializácia BALADA história',
+        content: btoa('[]')
+      })
+    });
+    showStatus('ok', '✓ Prepojenie úspešné! Repozitár inicializovaný. Môžeš zatvoriť túto stránku a vygenerovať prvý report.');
+  }
+}
+
+// Načítaj uložené pri štarte
+loadSaved();
+</script>
+</body>
+</html>
