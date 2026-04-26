@@ -32,16 +32,6 @@ html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:
 .btn-ai:hover{background:#185FA5}
 .btn-ai:disabled{background:#ccc;cursor:not-allowed}
 
-/* ── DOW FILTER ── */
-.dow-row{display:flex;gap:4px;flex-wrap:wrap}
-.dow-btn{background:#f5f5f2;border:0.5px solid #e0e0da;border-radius:5px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:Arial;color:#555;transition:all .15s;min-width:36px;text-align:center}
-.dow-btn:hover{border-color:#1a1a18;color:#1a1a18}
-.dow-btn.active{background:#1a1a18;color:#fff;border-color:#1a1a18}
-.dow-btn.has-data{border-style:solid}
-.dow-btn.no-data{opacity:.35;cursor:default}
-.dow-clear{background:none;border:0.5px solid #e0e0da;border-radius:5px;padding:5px 10px;font-size:11px;color:#aaa;cursor:pointer;font-family:Arial;transition:all .15s}
-.dow-clear:hover{border-color:#e3000b;color:#e3000b}
-
 /* ── MAIN GRID ── */
 .main{padding:24px 32px;display:grid;gap:16px}
 
@@ -138,7 +128,7 @@ html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:
     <div class="logo-sep"></div>
     <div class="logo-sub">História reportov</div>
   </div>
-  <a class="header-back" href="index.html" style="font-size:11px;font-weight:700;color:#e8e8e2;text-decoration:none;padding:7px 14px;background:#2a2a28;border:0.5px solid #444;border-radius:6px;transition:background .15s" onmouseover="this.style.background='#378ADD'" onmouseout="this.style.background='#2a2a28'">← Späť na portál</a>
+  <a class="header-back" href="index.html">← Portál</a>
 </div>
 
 <!-- TOOLBAR -->
@@ -151,21 +141,12 @@ html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:
     <button class="period-btn" onclick="setPeriod(999,this)">Všetko</button>
   </div>
   <div class="tb-sep"></div>
-  <div class="tb-sep"></div>
-  <span class="tb-label">Deň týždňa</span>
-  <div class="dow-row" id="dowRow">
-    <button class="dow-btn" onclick="setDow(1,this)" title="Pondelok">Po</button>
-    <button class="dow-btn" onclick="setDow(2,this)" title="Utorok">Ut</button>
-    <button class="dow-btn" onclick="setDow(3,this)" title="Streda">St</button>
-    <button class="dow-btn" onclick="setDow(4,this)" title="Štvrtok">Št</button>
-    <button class="dow-btn" onclick="setDow(5,this)" title="Piatok">Pi</button>
-    <button class="dow-btn" onclick="setDow(6,this)" title="Sobota">So</button>
-    <button class="dow-btn" onclick="setDow(0,this)" title="Nedeľa">Ne</button>
-    <button class="dow-clear" onclick="clearDow()" id="dowClear" style="display:none">× Zrušiť filter</button>
-  </div>
   <button class="btn-ai" id="btnAi" onclick="runAiDiagnoza()">
     <span>✦</span> AI diagnóza obdobia
   </button>
+  <div class="tb-sep"></div>
+  <button id="ghSyncBtn" onclick="loadFromGitHub()" style="background:#252523;color:#aaa;border:0.5px solid #333;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:Arial;transition:all .15s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#aaa'">⟳ GitHub sync</button>
+  <button id="ghConfigBtn" onclick="ghShowSettings()" style="background:#252523;color:#aaa;border:0.5px solid #333;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;cursor:pointer;font-family:Arial;transition:all .15s" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#aaa'">⚙️ GitHub</button>
   <span class="tb-count" id="tbCount"></span>
 </div>
 
@@ -187,15 +168,44 @@ html,body{min-height:100%;font-family:Arial,sans-serif;background:#f5f5f2;color:
 <script>
 var HIST_KEY='balada_daily_history';
 var currentPeriod=14;
-var currentDow=-1; // -1 = všetky dni
 var currentData=[];
-var allPeriodData=[]; // všetky záznamy za obdobie pred DOW filtrom
 var chartTrzba=null,chartKosik=null,chartPromo=null,chartTx=null;
 
 // ── NAČÍTANIE HISTÓRIE ──
 function histLoad(){
   try{var h=localStorage.getItem(HIST_KEY);return h?JSON.parse(h):[];}
   catch(e){return[];}
+}
+
+// Načítaj z GitHub (async) a zlúč s localStorage
+async function loadFromGitHub(){
+  if(!GH.isOk()) return;
+  var ghBtn = document.getElementById('ghSyncBtn');
+  if(ghBtn){ghBtn.textContent='⟳ Načítavam...';ghBtn.disabled=true;}
+  try{
+    var ghData = await GH.loadHistory();
+    if(ghData && ghData.length > 0){
+      // Zlúč s localStorage (GitHub má prednosť)
+      var local = histLoad();
+      var merged = {};
+      local.forEach(function(x){merged[x.dateKey]=x;});
+      ghData.forEach(function(x){merged[x.dateKey]=x;});
+      var all = Object.values(merged).sort(function(a,b){return b.dateKey.localeCompare(a.dateKey);});
+      // Uloži späť do localStorage
+      try{localStorage.setItem(HIST_KEY, JSON.stringify(all));}catch(e){}
+      // Aktualizuj footer
+      document.getElementById('footerMeta').textContent=all.length+' reportov (GitHub + lokálne)';
+      setPeriod(currentPeriod, document.querySelector('.period-btn.active'));
+      if(ghBtn){ghBtn.textContent='✓ GitHub';ghBtn.disabled=false;}
+    }
+  }catch(e){
+    if(ghBtn){ghBtn.textContent='⚠️ Chyba';ghBtn.disabled=false;}
+  }
+}
+
+function ghUpdateStatus(){
+  var btn = document.getElementById('ghConfigBtn');
+  if(btn) btn.textContent = GH.isOk() ? '⚙️ GitHub ✓' : '⚙️ GitHub nastaviť';
 }
 
 function getApiKey(){
@@ -224,61 +234,9 @@ function setPeriod(days,btn){
   document.querySelectorAll('.period-btn').forEach(function(b){b.classList.remove('active');});
   if(btn)btn.classList.add('active');
   var all=histLoad().sort(function(a,b){return b.dateKey.localeCompare(a.dateKey);});
-  allPeriodData=days>=999?all:all.slice(0,days);
-  applyDowFilter();
-  updateDowButtons();
-}
-
-function setDow(dow,btn){
-  if(currentDow===dow){
-    clearDow();return;
-  }
-  currentDow=dow;
-  document.querySelectorAll('.dow-btn').forEach(function(b){b.classList.remove('active');});
-  if(btn)btn.classList.add('active');
-  document.getElementById('dowClear').style.display='';
-  applyDowFilter();
-}
-
-function clearDow(){
-  currentDow=-1;
-  document.querySelectorAll('.dow-btn').forEach(function(b){b.classList.remove('active');});
-  document.getElementById('dowClear').style.display='none';
-  applyDowFilter();
-}
-
-function applyDowFilter(){
-  if(currentDow===-1){
-    currentData=allPeriodData;
-  } else {
-    currentData=allPeriodData.filter(function(h){
-      return new Date(h.dateKey).getDay()===currentDow;
-    });
-  }
-  var label=currentDow===-1?currentData.length+' reportov':currentData.length+' reportov ('+['Ne','Po','Ut','St','Št','Pi','So'][currentDow]+')';
-  document.getElementById('tbCount').textContent=label;
+  currentData=days>=999?all:all.slice(0,days);
+  document.getElementById('tbCount').textContent=currentData.length+' reportov';
   renderAll();
-}
-
-function updateDowButtons(){
-  // Označ tlačidlá pre ktoré existujú dáta
-  var dowCounts={};
-  allPeriodData.forEach(function(h){
-    var d=new Date(h.dateKey).getDay();
-    dowCounts[d]=(dowCounts[d]||0)+1;
-  });
-  document.querySelectorAll('.dow-btn').forEach(function(btn){
-    var dow=parseInt(btn.getAttribute('onclick').match(/setDow\((\d+)/)[1]);
-    if(dowCounts[dow]){
-      btn.classList.add('has-data');
-      btn.classList.remove('no-data');
-      btn.title=['Nedeľa','Pondelok','Utorok','Streda','Štvrtok','Piatok','Sobota'][dow]+' ('+dowCounts[dow]+'×)';
-    } else {
-      btn.classList.add('no-data');
-      btn.classList.remove('has-data');
-      btn.onclick=null;
-    }
-  });
 }
 
 function renderAll(){
@@ -544,7 +502,91 @@ async function runAiDiagnoza(){
 }
 
 // INIT
-window.addEventListener('DOMContentLoaded',init);
+window.addEventListener('DOMContentLoaded',function(){
+  init();
+  ghUpdateStatus();
+  // Auto-sync pri načítaní ak je GitHub nakonfigurovaný
+  if(GH.isOk()) setTimeout(loadFromGitHub, 500);
+});
+
+// ═══════════════════════════════════════════════
+// GITHUB STORAGE MODULE v1.0 · RAPO BRNO
+// ═══════════════════════════════════════════════
+var GH=(function(){
+  var SK='balada_github_settings';
+  function cfg(){try{var s=localStorage.getItem(SK);return s?JSON.parse(s):null;}catch(e){return null;}}
+  function saveCfg(s){try{localStorage.setItem(SK,JSON.stringify(s));}catch(e){}}
+  function ok(){var s=cfg();return s&&s.token&&s.repo&&s.owner;}
+  function url(s,p){return'https://api.github.com/repos/'+s.owner+'/'+s.repo+'/contents/'+p;}
+  function hdrs(s){return{'Authorization':'Bearer '+s.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'};}
+  async function sha(s,p){try{var r=await fetch(url(s,p),{headers:hdrs(s)});if(r.status===404)return null;var j=await r.json();return j.sha||null;}catch(e){return null;}}
+  async function put(p,data,msg){
+    var s=cfg();if(!s||!s.token)throw new Error('GitHub nie je nakonfigurovaný');
+    var sh=await sha(s,p);
+    var content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))));
+    var body={message:msg||'BALADA update',content:content};
+    if(sh)body.sha=sh;
+    var r=await fetch(url(s,p),{method:'PUT',headers:hdrs(s),body:JSON.stringify(body)});
+    if(!r.ok){var e=await r.json();throw new Error(e.message||'GitHub '+r.status);}
+    return r.json();
+  }
+  async function get(p){
+    var s=cfg();if(!s||!s.token)return null;
+    var r=await fetch(url(s,p)+'?t='+Date.now(),{headers:hdrs(s)});
+    if(r.status===404)return null;if(!r.ok)return null;
+    var j=await r.json();if(!j.content)return null;
+    return JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
+  }
+  async function saveSnapshot(snap){
+    await put('data/snapshots/'+snap.dateKey+'.json',snap,'Snapshot '+snap.datum);
+    // Aktualizuj index
+    var idx=null;try{idx=await get('data/index.json');}catch(e){}
+    if(!idx||!Array.isArray(idx))idx=[];
+    var entry={dateKey:snap.dateKey,datum:snap.datum,den:snap.den,trzba:snap.trzba,tx_count:snap.tx_count,avg_tx:snap.avg_tx,promoRatio:snap.promoRatio||0,j1pct:snap.j1pct||0,j5pct:snap.j5pct||0,marza_pct:snap.marza_pct||null,karta:snap.karta||0,cash:snap.cash||0,abc_a_pct:snap.abc_a_pct||null};
+    var ei=idx.findIndex(function(x){return x.dateKey===snap.dateKey;});
+    if(ei>=0)idx[ei]=entry;else idx.unshift(entry);
+    idx.sort(function(a,b){return b.dateKey.localeCompare(a.dateKey);});
+    await put('data/index.json',idx,'Index update '+snap.datum);
+  }
+  async function loadHistory(){try{var idx=await get('data/index.json');return idx||[];}catch(e){return[];}}
+  return{isOk:ok,cfg:cfg,saveCfg:saveCfg,saveSnapshot:saveSnapshot,loadHistory:loadHistory,get:get,put:put};
+})();
+
+// ── GITHUB NASTAVENIA UI ──
+function ghShowSettings(){
+  var s=GH.cfg()||{};
+  document.body.insertAdjacentHTML('beforeend',
+    '<div id="ghOv" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center">'
+    +'<div style="background:#1a1a18;border:0.5px solid #333;border-radius:14px;padding:28px;width:420px;max-width:95vw">'
+    +'<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:5px">⚙️ GitHub úložisko</div>'
+    +'<div style="font-size:11px;color:#555;margin-bottom:18px">História reportov sa ukladá do vášho GitHub repozitára a je dostupná na všetkých zariadeniach.</div>'
+    +'<div style="display:flex;flex-direction:column;gap:11px">'
+    +'<div><label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">GitHub username</label><input id="gh-o" type="text" value="'+(s.owner||'')+'" placeholder="pousrichard-rgb" style="width:100%;background:#111;border:0.5px solid #333;border-radius:6px;padding:8px 10px;font-size:12px;color:#eee;font-family:Arial;outline:none"></div>'
+    +'<div><label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">Repozitár</label><input id="gh-r" type="text" value="'+(s.repo||'')+'" placeholder="balada-reports" style="width:100%;background:#111;border:0.5px solid #333;border-radius:6px;padding:8px 10px;font-size:12px;color:#eee;font-family:Arial;outline:none"></div>'
+    +'<div><label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">Personal Access Token</label><input id="gh-t" type="password" value="'+(s.token||'')+'" placeholder="ghp_xxxxxxxxxxxx" style="width:100%;background:#111;border:0.5px solid #333;border-radius:6px;padding:8px 10px;font-size:12px;color:#eee;font-family:Arial;outline:none"></div>'
+    +'</div>'
+    +'<a href="https://github.com/settings/tokens/new?scopes=repo&description=BALADA+Reports" target="_blank" style="font-size:10px;color:#378ADD;text-decoration:none;display:block;margin-top:6px">→ Vytvoriť token na GitHub</a>'
+    +'<div id="gh-st" style="font-size:11px;margin-top:10px;min-height:16px"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button onclick="ghSave()" style="flex:1;background:#378ADD;color:#fff;border:none;border-radius:7px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:Arial">Uložiť a otestovať</button>'
+    +'<button onclick="document.getElementById('ghOv').remove()" style="background:#252523;color:#aaa;border:none;border-radius:7px;padding:10px 14px;font-size:12px;cursor:pointer;font-family:Arial">Zrušiť</button>'
+    +'</div></div></div>'
+  );
+}
+
+async function ghSave(){
+  var st=document.getElementById('gh-st');
+  var s={owner:document.getElementById('gh-o').value.trim(),repo:document.getElementById('gh-r').value.trim(),token:document.getElementById('gh-t').value.trim()};
+  if(!s.owner||!s.repo||!s.token){st.innerHTML='<span style="color:#D85A30">⚠️ Vyplňte všetky polia</span>';return;}
+  st.innerHTML='<span style="color:#aaa">Testujem...</span>';
+  GH.saveCfg(s);
+  try{
+    var r=await fetch('https://api.github.com/repos/'+s.owner+'/'+s.repo,{headers:{'Authorization':'Bearer '+s.token,'Accept':'application/vnd.github+json'}});
+    if(r.ok){st.innerHTML='<span style="color:#5DCAA5">✓ Prepojenie úspešné!</span>';setTimeout(function(){document.getElementById('ghOv').remove();if(typeof ghUpdateStatus==='function')ghUpdateStatus();},1500);}
+    else st.innerHTML='<span style="color:#D85A30">⚠️ Chyba '+r.status+' — skontrolujte token</span>';
+  }catch(e){st.innerHTML='<span style="color:#D85A30">⚠️ '+e.message+'</span>';}
+}
+
 </script>
 </body>
 </html>

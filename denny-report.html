@@ -236,17 +236,12 @@ table.r-styled td:last-child{text-align:right;font-weight:500}
 <!-- ===== ĽAVÝ PANEL ===== -->
 <div class="left">
   <div class="left-header">
-    <a href="index.html" style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#e8e8e2;text-decoration:none;margin-bottom:12px;padding:8px 12px;background:#2a2a28;border:0.5px solid #444;border-radius:6px;transition:background .15s" onmouseover="this.style.background='#378ADD'" onmouseout="this.style.background='#2a2a28'">← Späť na portál</a>
     <div class="logo">BALADA <span>·</span> Report Generator</div>
     <div class="logo-sub">RAPO BRNO, s.r.o. · ID provozovny 96</div>
   </div>
   <div class="left-body">
 
-    <div class="sb-section" style="margin-top:0;border-top:none;color:#5DCAA5">📅 História reportov</div>
-    <div class="hist-list" id="histList"></div>
-    <div class="hist-count" id="histCount"></div>
-
-    <div class="sb-section">Nahrať export z pokladne</div>
+    <div class="sb-section" style="margin-top:0;border-top:none">Nahrať export z pokladne</div>
     <div class="upload-zone" id="uploadZone" ondragover="ev.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="ev.preventDefault();this.classList.remove('drag');handleFile(ev.dataTransfer.files[0])">
       <input type="file" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
       <div class="upload-icon">📂</div>
@@ -285,6 +280,10 @@ table.r-styled td:last-child{text-align:right;font-weight:500}
       <div style="margin-top:5px"><button onclick="clearMarzaMap()" style="background:none;border:none;font-size:10px;color:#444;cursor:pointer;padding:0;font-family:inherit">✕ Vymazať z pamäte</button></div>
     </div>
 
+    <div class="sb-section">História reportov</div>
+    <div class="hist-list" id="histList"></div>
+    <div class="hist-count" id="histCount"></div>
+
     <div class="sb-section">Nastavenia</div>
     <div class="field"><label>Pobočka</label><input type="text" id="s-pobocka" value="BALADA – Březinky, Jihlava"></div>
     <div class="field"><label>DIČ</label><input type="text" id="s-dic" value="CZ60738677"></div>
@@ -306,6 +305,8 @@ table.r-styled td:last-child{text-align:right;font-weight:500}
     </div>
     <p style="font-size:10px;color:#6b6b65;line-height:1.5;margin:4px 0 8px">Tieto poznámky sú súčasťou AI analýzy — čím presnejšie, tým relevantnejší komentár.</p>
 
+    <div class="sb-section">GitHub úložisko</div>
+    <button id="ghStatusBtn" onclick="ghShowSettings()" style="width:100%;background:#1e1e1c;border:0.5px solid #2e2e2c;border-radius:7px;padding:8px;font-size:11px;color:#555;cursor:pointer;font-family:Arial;text-align:center;margin-bottom:4px;transition:all .15s">GitHub nastaviť</button>
     <div class="sb-section">Generovať</div>
     <button class="btn-gen" id="btnGen" onclick="generateReport()">⚡ Generovať Daily Report</button>
     <div class="status ok" id="status">✓ Sparsované (750 transakcií)</div>
@@ -560,7 +561,7 @@ function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 // ===== UPLOAD KATEGÓRIE =====
 // Načítame uložený strom z localStorage - po načítaní DOM
-document.addEventListener('DOMContentLoaded',function(){
+document.addEventListener('DOMContentLoaded',function(){ghUpdateStatusBar();
   try{
     var saved=localStorage.getItem('balada_katmap');
     if(saved){
@@ -923,10 +924,6 @@ function parseXLSX(buf){
   currentData=D;
   document.getElementById('status').textContent='✓ Sparsované ('+D.tx_count+' transakcií)';
   document.getElementById('status').className='status ok';
-  // Reset — odstráň prípadný history banner a obnov tlačidlo
-  document.querySelectorAll('.hist-banner').forEach(function(b){b.remove();});
-  var btn=document.getElementById('btnGen');
-  if(btn){btn.textContent='⚡ Generovať Daily Report';btn.style.background='';btn.disabled=false;}
   // Spustiť AI analýzu automaticky po načítaní súboru
   setTimeout(function(){if(currentData)runAiAnalysis();},500);
 }
@@ -934,16 +931,11 @@ function parseXLSX(buf){
 // ===== GENERATE =====
 function generateReport(){
   if(!currentData){document.getElementById('status').textContent='Najprv nahrajte súbor';document.getElementById('status').className='status err';return;}
-  if(currentData.fromHistory){document.getElementById('status').textContent='Nahrajte novú Sestavu XLSX pre generovanie';document.getElementById('status').className='status err';return;}
   document.getElementById('emptyState').style.display='none';
   document.getElementById('reportWrap').classList.remove('show');
   document.getElementById('reportToolbar').style.display='none';
   document.getElementById('loadingState').classList.add('show');
-  var D=currentData;
-  // Najprv skontroluj duplikát, po rozhodnutí renderuj
-  trySaveSnapshot(D, function(){
-    setTimeout(function(){renderReport(D, true);},300);
-  });
+  setTimeout(function(){renderReport(currentData);},300);
 }
 
 // ===== TOGGLE KAT =====
@@ -956,15 +948,14 @@ function toggleKat(id){
 }
 
 // ===== RENDER =====
-function renderReport(D, skipSave){
-  var fromHist=!!D.fromHistory;
+function renderReport(D){
   var pobocka=document.getElementById('s-pobocka').value;
   var dic=document.getElementById('s-dic').value;
   var idprov=document.getElementById('s-idprov').value;
   document.getElementById('r-pobocka').textContent=pobocka;
   document.getElementById('r-subtitle').textContent='Management report · RAPO BRNO, s.r.o. · DIČ '+dic+' · ID provozovny '+idprov+' · '+D.datum+' · '+D.den;
   document.getElementById('toolbarMeta').textContent='BALADA Daily Report · '+D.datum;
-  document.getElementById('r-footer').textContent='Vygenerované z dát pokladničného systému · '+pobocka+' · '+D.datum+(fromHist?' [snapshot]':'');
+  document.getElementById('r-footer').textContent='Vygenerované z dát pokladničného systému · '+pobocka+' · '+D.datum;
   // KPI
   document.getElementById('r-trzba').textContent=fmt(D.trzba)+' Kč';
   document.getElementById('r-tx').textContent=fmt(D.tx_count);
@@ -987,29 +978,27 @@ function renderReport(D, skipSave){
   document.getElementById('b-d12').style.width=(D.d12z/maxD*100)+'%';
   document.getElementById('b-d21').style.width=(D.d21z/maxD*100)+'%';
   document.getElementById('b-d0').style.width=(D.d0z/maxD*100)+'%';
-  document.getElementById('v-d12').textContent=fmt(D.d12z||0)+' Kč';
-  document.getElementById('v-d21').textContent=fmt(D.d21z||0)+' Kč';
-  document.getElementById('v-d0').textContent=fmt(D.d0z||0)+' Kč';
-  document.getElementById('r-dphc').textContent=fmt(D.dphcel||0)+' Kč';
+  document.getElementById('v-d12').textContent=fmt(D.d12z)+' Kč';
+  document.getElementById('v-d21').textContent=fmt(D.d21z)+' Kč';
+  document.getElementById('v-d0').textContent=fmt(D.d0z)+' Kč';
+  document.getElementById('r-dphc').textContent=fmt(D.dphcel)+' Kč';
   // Ďalšie
-  document.getElementById('r-vrat').textContent=fmtDec(D.vrat||0,2)+' Kč';
-  document.getElementById('r-zrus').textContent=(D.zrus_count||0)+' ks';
-  document.getElementById('r-zlavy').textContent=fmtDec(D.slevy||0,2)+' Kč';
-  document.getElementById('r-zaokr').textContent=fmtDec(D.zaokr||0,2)+' Kč';
+  document.getElementById('r-vrat').textContent=fmtDec(D.vrat,2)+' Kč';
+  document.getElementById('r-zrus').textContent=D.zrus_count+' ks';
+  document.getElementById('r-zlavy').textContent=fmtDec(D.slevy,2)+' Kč';
+  document.getElementById('r-zaokr').textContent=fmtDec(D.zaokr,2)+' Kč';
   // Akcie
   var bezak=D.trzba-D.trzba_akcie;
   document.getElementById('r-ak').textContent=fmt(D.trzba_akcie)+' Kč';
   document.getElementById('r-bezak').textContent=fmt(bezak)+' Kč';
   document.getElementById('r-akpct').textContent=D.trzba>0?(D.trzba_akcie/D.trzba*100).toFixed(1)+' % z celku':'—';
   document.getElementById('r-bezakpct').textContent=D.trzba>0?(bezak/D.trzba*100).toFixed(1)+' % z celku':'—';
-  document.getElementById('r-prog').textContent=D.program||'—';
-  document.getElementById('r-akcienote').textContent=fromHist?'Detail akcií nedostupný — zobrazený snapshot.'
-    :('Program '+(D.program||'')+(D.top_akcie&&D.top_akcie.length>0?' – líder akcií: '+D.top_akcie[0].n:'')+'.');
+  document.getElementById('r-prog').textContent=D.program;
+  document.getElementById('r-akcienote').textContent='Program '+D.program+' – líder akcií: '+(D.top_akcie.length>0?D.top_akcie[0].n:'—')+'.';
   // Top akcie
   var taEl=document.getElementById('r-topakcie');
   taEl.innerHTML='<p class="r-ctitle">Top akciové produkty (tržba)</p>';
-  if(fromHist){taEl.innerHTML+='<p style="font-size:11px;color:#aaa;padding:8px 0">Dostupné len pri nahratí pôvodného XLSX.</p>';}
-  var maxTA=D.top_akcie&&D.top_akcie.length>0?D.top_akcie[0].v:1;
+  var maxTA=D.top_akcie.length>0?D.top_akcie[0].v:1;
   D.top_akcie.forEach(function(t){
     taEl.innerHTML+='<div class="r-bar-row-full"><div class="r-brf-label">'+(t.cislo?'<span style="font-size:10px;color:#aaa;margin-right:4px">'+escHtml(t.cislo)+'</span>':'')+escHtml(t.n)+'</div>'
       +'<div class="r-brf-bar"><div class="r-bar-track"><div class="r-bar-fill" style="width:'+(t.v/maxTA*100).toFixed(1)+'%;background:#378ADD"></div></div>'
@@ -1042,16 +1031,13 @@ function renderReport(D, skipSave){
     }).join('');
   }
   t10El.innerHTML='<div class="t10-triple">'
-    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#378ADD"></div><span class="t10-col-hdr-title">Podľa tržby (Kč)</span></div>'+(D.top10&&D.top10.length>0?renderMiniList(D.top10,'#378ADD','Kč'):'<p style="font-size:11px;color:#aaa;padding:8px 0">Nedostupné v snapshote</p>')+'</div>'
-    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#5DCAA5"></div><span class="t10-col-hdr-title">Podľa množstva (ks)</span></div>'+(D.top10ks&&D.top10ks.length>0?renderMiniList(D.top10ks,'#5DCAA5','ks'):'<p style="font-size:11px;color:#aaa;padding:8px 0">Nedostupné v snapshote</p>')+'</div>'
-    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#D85A30"></div><span class="t10-col-hdr-title">Podľa košíkov</span></div>'+(D.top10dok&&D.top10dok.length>0?renderMiniList(D.top10dok,'#D85A30','košíkov'):'<p style="font-size:11px;color:#aaa;padding:8px 0">Nedostupné v snapshote</p>')+'</div>'
+    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#378ADD"></div><span class="t10-col-hdr-title">Podľa tržby (Kč)</span></div>'+renderMiniList(D.top10,'#378ADD','Kč')+'</div>'
+    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#5DCAA5"></div><span class="t10-col-hdr-title">Podľa množstva (ks)</span></div>'+renderMiniList(D.top10ks,'#5DCAA5','ks')+'</div>'
+    +'<div class="t10-col"><div class="t10-col-hdr"><div class="t10-col-hdr-dot" style="background:#D85A30"></div><span class="t10-col-hdr-title">Podľa košíkov</span></div>'+renderMiniList(D.top10dok,'#D85A30','košíkov')+'</div>'
   +'</div>';
   // Kategórie accordion
   var katEl=document.getElementById('r-kategorie');
   katEl.innerHTML='<p class="r-ctitle">Tržba podľa kategórie – kliknite pre rozbalenie</p>';
-  if(!D.katTree||D.katTree.length===0){
-    katEl.innerHTML+='<p style="font-size:11px;color:#aaa;padding:8px 0">Kategórie nie sú dostupné v snapshote.</p>';
-  } else {
   var maxKat=D.katTree.length>0?D.katTree[0].trzba:1;
   D.katTree.forEach(function(g,gi){
     var maxSub=g.subs.length>0?g.subs[0].trzba:1;
@@ -1091,7 +1077,6 @@ function renderReport(D, skipSave){
     grp.className='kat-group';grp.appendChild(hdr);grp.appendChild(subsDiv);
     katEl.appendChild(grp);
   });
-  } // end if katTree
   // ABC KPI
   if(D.abc){
     var abcKpiEl=document.getElementById('r-abc-kpi');
@@ -1151,6 +1136,8 @@ function renderReport(D, skipSave){
   document.getElementById('reportWrap').classList.add('show');
   // Maržová sekcia
   renderMarzaSection(D);
+  // Uložiť snapshot do histórie
+  trySaveSnapshot(D);
   // Spustiť AI analýzu
   runAiAnalysis();
   // Grafy — počkaj kým sú canvasy viditeľné (GitHub Pages potrebuje dlhší timeout)
@@ -1879,8 +1866,24 @@ function histLoad(){
   try{var h=localStorage.getItem(HIST_KEY);return h?JSON.parse(h):[];}catch(e){return [];}
 }
 
-function histSave(arr){
-  try{localStorage.setItem(HIST_KEY,JSON.stringify(arr));}catch(e){}
+function histSave(hist){
+  try{localStorage.setItem('balada_daily_history',JSON.stringify(hist));}catch(e){}
+}
+
+// GitHub ukladanie snapshotu (async, neblokovanie UI)
+async function ghSaveSnapshotAsync(snap){
+  if(!GH.isOk()) return;
+  var el=document.getElementById('ghStatusBtn');
+  if(el){el.textContent='⟳ Ukladám...';el.style.color='#aaa';}
+  try{
+    await GH.saveSnapshot(snap);
+    if(el){el.textContent='GitHub ✓';el.style.color='#5DCAA5';}
+    setTimeout(function(){if(el)el.style.color='';ghUpdateStatusBar();},3000);
+  }catch(e){
+    if(el){el.textContent='⚠️ GitHub chyba';el.style.color='#D85A30';}
+    console.warn('GitHub save error:',e.message);
+  }
+}catch(e){}
 }
 
 function dateStrFromD(D){
@@ -1907,13 +1910,13 @@ function buildSnapshot(D){
   };
 }
 
-function trySaveSnapshot(D, onDone){
+function trySaveSnapshot(D){
   var snap=buildSnapshot(D);
-  if(!snap.dateKey){if(onDone)onDone();return;}
+  if(!snap.dateKey)return;
   var hist=histLoad();
   var existing=hist.findIndex(function(h){return h.dateKey===snap.dateKey;});
   if(existing>=0){
-    _pendingSnapshot={snap:snap,hist:hist,idx:existing,onDone:onDone};
+    _pendingSnapshot={snap:snap,hist:hist,idx:existing};
     document.getElementById('dupDate').textContent=D.datum+(D.den?' ('+D.den+')':'');
     document.getElementById('dupOverlay').classList.add('show');
   }else{
@@ -1921,16 +1924,93 @@ function trySaveSnapshot(D, onDone){
     if(hist.length>120)hist=hist.slice(0,120);
     histSave(hist);
     renderHistList();
-    if(onDone)onDone();
   }
+}
+
+
+// ═══════════════════════════════════════════════
+// GITHUB STORAGE MODULE v1.0 · RAPO BRNO
+// ═══════════════════════════════════════════════
+var GH=(function(){
+  var SK='balada_github_settings';
+  function cfg(){try{var s=localStorage.getItem(SK);return s?JSON.parse(s):null;}catch(e){return null;}}
+  function saveCfg(s){try{localStorage.setItem(SK,JSON.stringify(s));}catch(e){}}
+  function ok(){var s=cfg();return s&&s.token&&s.repo&&s.owner;}
+  function url(s,p){return'https://api.github.com/repos/'+s.owner+'/'+s.repo+'/contents/'+p;}
+  function hdrs(s){return{'Authorization':'Bearer '+s.token,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','Content-Type':'application/json'};}
+  async function sha(s,p){try{var r=await fetch(url(s,p),{headers:hdrs(s)});if(r.status===404)return null;var j=await r.json();return j.sha||null;}catch(e){return null;}}
+  async function put(p,data,msg){
+    var s=cfg();if(!s||!s.token)throw new Error('GitHub nie je nakonfigurovaný');
+    var sh=await sha(s,p);
+    var content=btoa(unescape(encodeURIComponent(JSON.stringify(data,null,2))));
+    var body={message:msg||'BALADA update',content:content};
+    if(sh)body.sha=sh;
+    var r=await fetch(url(s,p),{method:'PUT',headers:hdrs(s),body:JSON.stringify(body)});
+    if(!r.ok){var e=await r.json();throw new Error(e.message||'GitHub '+r.status);}
+    return r.json();
+  }
+  async function get(p){
+    var s=cfg();if(!s||!s.token)return null;
+    var r=await fetch(url(s,p)+'?t='+Date.now(),{headers:hdrs(s)});
+    if(r.status===404)return null;if(!r.ok)return null;
+    var j=await r.json();if(!j.content)return null;
+    return JSON.parse(decodeURIComponent(escape(atob(j.content.replace(/\n/g,'')))));
+  }
+  async function saveSnapshot(snap){
+    await put('data/snapshots/'+snap.dateKey+'.json',snap,'Snapshot '+snap.datum);
+    var idx=null;try{idx=await get('data/index.json');}catch(e){}
+    if(!idx||!Array.isArray(idx))idx=[];
+    var entry={dateKey:snap.dateKey,datum:snap.datum,den:snap.den,trzba:snap.trzba,tx_count:snap.tx_count,avg_tx:snap.avg_tx,promoRatio:snap.promoRatio||0,j1pct:snap.j1pct||0,j5pct:snap.j5pct||0,marza_pct:snap.marza_pct||null,karta:snap.karta||0,cash:snap.cash||0,abc_a_pct:snap.abc_a_pct||null};
+    var ei=idx.findIndex(function(x){return x.dateKey===snap.dateKey;});
+    if(ei>=0)idx[ei]=entry;else idx.unshift(entry);
+    idx.sort(function(a,b){return b.dateKey.localeCompare(a.dateKey);});
+    await put('data/index.json',idx,'Index update '+snap.datum);
+  }
+  return{isOk:ok,cfg:cfg,saveCfg:saveCfg,saveSnapshot:saveSnapshot,get:get,put:put};
+})();
+
+function ghShowSettings(){
+  var s=GH.cfg()||{};
+  document.body.insertAdjacentHTML('beforeend',
+    '<div id="ghOv" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:center;justify-content:center">'
+    +'<div style="background:#1a1a18;border:0.5px solid #333;border-radius:14px;padding:28px;width:420px;max-width:95vw">'
+    +'<div style="font-size:14px;font-weight:700;color:#fff;margin-bottom:5px">⚙️ GitHub úložisko</div>'
+    +'<div style="font-size:11px;color:#555;margin-bottom:18px">História reportov sa ukladá do vášho GitHub repozitára a je dostupná na všetkých zariadeniach.</div>'
+    +'<div style="display:flex;flex-direction:column;gap:11px">'
+    +'<div><label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">GitHub username</label><input id="gh-o" type="text" value="'+(s.owner||'')+'" placeholder="pousrichard-rgb" style="width:100%;background:#111;border:0.5px solid #333;border-radius:6px;padding:8px 10px;font-size:12px;color:#eee;font-family:Arial;outline:none"></div>'
+    +'<div><label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">Repozitár</label><input id="gh-r" type="text" value="'+(s.repo||'')+'" placeholder="balada-reports" style="width:100%;background:#111;border:0.5px solid #333;border-radius:6px;padding:8px 10px;font-size:12px;color:#eee;font-family:Arial;outline:none"></div>'
+    +'<div><label style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:3px">Personal Access Token</label><input id="gh-t" type="password" value="'+(s.token||'')+'" placeholder="ghp_xxxxxxxxxxxx" style="width:100%;background:#111;border:0.5px solid #333;border-radius:6px;padding:8px 10px;font-size:12px;color:#eee;font-family:Arial;outline:none"></div>'
+    +'</div>'
+    +'<a href="https://github.com/settings/tokens/new?scopes=repo&description=BALADA+Reports" target="_blank" style="font-size:10px;color:#378ADD;text-decoration:none;display:block;margin-top:6px">→ Vytvoriť token na GitHub</a>'
+    +'<div id="gh-st" style="font-size:11px;margin-top:10px;min-height:16px"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button onclick="ghSave()" style="flex:1;background:#378ADD;color:#fff;border:none;border-radius:7px;padding:10px;font-size:12px;font-weight:700;cursor:pointer;font-family:Arial">Uložiť a otestovať</button>'
+    +'<button onclick="document.getElementById('ghOv').remove()" style="background:#252523;color:#aaa;border:none;border-radius:7px;padding:10px 14px;font-size:12px;cursor:pointer;font-family:Arial">Zrušiť</button>'
+    +'</div></div></div>'
+  );
+}
+
+async function ghSave(){
+  var st=document.getElementById('gh-st');
+  var s={owner:document.getElementById('gh-o').value.trim(),repo:document.getElementById('gh-r').value.trim(),token:document.getElementById('gh-t').value.trim()};
+  if(!s.owner||!s.repo||!s.token){st.innerHTML='<span style="color:#D85A30">⚠️ Vyplňte všetky polia</span>';return;}
+  st.innerHTML='<span style="color:#aaa">Testujem...</span>';
+  GH.saveCfg(s);
+  try{
+    var r=await fetch('https://api.github.com/repos/'+s.owner+'/'+s.repo,{headers:{'Authorization':'Bearer '+s.token,'Accept':'application/vnd.github+json'}});
+    if(r.ok){st.innerHTML='<span style="color:#5DCAA5">✓ Prepojenie úspešné!</span>';setTimeout(function(){document.getElementById('ghOv').remove();ghUpdateStatusBar();},1500);}
+    else st.innerHTML='<span style="color:#D85A30">⚠️ Chyba '+r.status+'</span>';
+  }catch(e){st.innerHTML='<span style="color:#D85A30">⚠️ '+e.message+'</span>';}
+}
+
+function ghUpdateStatusBar(){
+  var el=document.getElementById('ghStatusBtn');
+  if(el) el.textContent=GH.isOk()?'GitHub ✓':'GitHub nastaviť';
 }
 
 function dupCancel(){
   document.getElementById('dupOverlay').classList.remove('show');
-  // Pokračuj bez uloženia
-  var cb=_pendingSnapshot&&_pendingSnapshot.onDone;
   _pendingSnapshot=null;
-  if(cb)cb();
 }
 
 function dupOverwrite(){
@@ -1941,9 +2021,7 @@ function dupOverwrite(){
   h.unshift(_pendingSnapshot.snap);
   histSave(h);
   renderHistList();
-  var cb=_pendingSnapshot.onDone;
   _pendingSnapshot=null;
-  if(cb)cb();
 }
 
 function histDelete(dateKey,e){
@@ -1953,67 +2031,6 @@ function histDelete(dateKey,e){
   hist=hist.filter(function(h){return h.dateKey!==dateKey;});
   histSave(hist);
   renderHistList();
-}
-
-function loadFromHistory(dateKey){
-  var hist=histLoad();
-  var snap=hist.find(function(h){return h.dateKey===dateKey;});
-  if(!snap)return;
-
-  var fakeD={
-    datum:snap.datum, den:snap.den,
-    trzba:snap.trzba, tx_count:snap.tx_count, avg_tx:snap.avg_tx,
-    pol_count:0, max_tx:0, pol_akcie:0, akciapct:0,
-    trzba_akcie:snap.trzba_akcie||0,
-    karta:snap.karta||0, cash:snap.cash||0, strav:snap.strav||0,
-    j1:0, j1pct:snap.j1pct||0, j5:0, j5pct:snap.j5pct||0,
-    avg_kosik:snap.avg_kosik||0,
-    d12z:0, d21z:0, d0z:0, dphcel:0,
-    vrat:0, zrus_count:0, slevy:0, zaokr:0,
-    program:'—', top_akcie:[],
-    hodiny_labels:[], hodiny_trzba:[], hodiny_tx:[],
-    ticket:[0,0,0,0,0,0,0],
-    kombos:[], top10:[], top10ks:[], top10dok:[],
-    katTree:[], kategorie:snap.top_kat?[{n:snap.top_kat,v:snap.trzba}]:[],
-    abc:snap.abc_a_count?{
-      total:snap.abc_a_count, totalTrzba:snap.trzba,
-      a:{count:snap.abc_a_count, trzba:snap.trzba*((snap.abc_a_pct||0)/100), pct:snap.abc_a_pct||0},
-      b:{count:0,trzba:0,pct:0}, c:{count:0,trzba:0,pct:0},
-      topA:[],topB:[],topC:[],all:[],pareto:[],
-      dayA:snap.trzba*((snap.abc_a_pct||0)/100), dayB:0, dayC:0
-    }:null,
-    marza:snap.marza_pct?{pct:snap.marza_pct,totalKc:snap.marza_kc||0,negCount:0,pokrytie:0}:null,
-    vatData:{}, fromHistory:true
-  };
-
-  // Nastav currentData pre prípad ďalšieho použitia
-  currentData=fakeD;
-
-  // Uprav tlačidlo Generovať — je v history móde
-  var btn=document.getElementById('btnGen');
-  if(btn){
-    btn.textContent='📅 Zobrazený snapshot — nahraj XLSX pre nový report';
-    btn.style.background='#6b6b65';
-    btn.disabled=false;
-  }
-
-  document.getElementById('emptyState').style.display='none';
-  document.getElementById('reportWrap').classList.remove('show');
-  document.getElementById('reportToolbar').style.display='none';
-  document.getElementById('loadingState').classList.add('show');
-
-  setTimeout(function(){
-    renderReport(fakeD, true); // true = skipSave
-    // Odstráň staré bannery
-    document.querySelectorAll('.hist-banner').forEach(function(b){b.remove();});
-    // Žltý banner
-    var banner=document.createElement('div');
-    banner.className='hist-banner';
-    banner.style.cssText='background:#FDF3DC;border:0.5px solid #C8860A;border-radius:8px;padding:10px 16px;margin-bottom:16px;font-size:12px;color:#7A4F00;display:flex;align-items:center;gap:8px';
-    banner.innerHTML='<span style="font-size:16px">📅</span><span>Snapshot z <strong>'+snap.datum+' ('+snap.den+')</strong>. Grafy a detail produktov nie sú dostupné bez pôvodného XLSX.</span>';
-    var rw=document.getElementById('reportWrap');
-    if(rw)rw.insertBefore(banner,rw.firstChild);
-  },300);
 }
 
 function renderHistList(){
@@ -2030,13 +2047,13 @@ function renderHistList(){
   el.innerHTML=hist.slice(0,14).map(function(h){
     var isToday=h.dateKey===todayKey;
     var denSkr=h.den?h.den.substring(0,2):'';
-    return '<div class="hist-item'+(isToday?' today':'')+'" onclick="loadFromHistory(\''+h.dateKey+'\')" title="Klikni pre zobrazenie · '+h.datum+' · '+h.tx_count+' tx · '+h.avg_tx+' Kč/tx">'
+    return '<div class="hist-item'+(isToday?' today':'')+'" title="'+h.datum+' · '+h.tx_count+' tx · '+h.avg_tx+' Kč/tx">'
       +'<span class="hist-date'+(isToday?' today-lbl':'')+'">'+denSkr+' '+h.datum+'</span>'
       +'<span class="hist-trzba">'+Math.round(h.trzba/1000)+'k Kč</span>'
       +'<button class="hist-del" onclick="histDelete(\''+h.dateKey+'\',event)" title="Odstrániť">×</button>'
     +'</div>';
   }).join('');
-  if(cnt)cnt.textContent=hist.length+' uložených'+(hist.length>14?' · len posledných 14':'');
+  if(cnt)cnt.textContent=hist.length+' uložených'+(hist.length>14?' · zobraziť len posledných 14':'');
 }
 
 function downloadHTML(){
